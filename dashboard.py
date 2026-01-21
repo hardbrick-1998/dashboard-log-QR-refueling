@@ -3,14 +3,13 @@ import pandas as pd
 import requests
 import plotly.express as px
 
-# --- KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Dashboard MACO", layout="wide")
 
-# --- 1. AMBIL DATA DARI GOOGLE SHEETS API ---
-# Masukkan Link Web App Google Script Bapak di sini:
+# --- 1. AMBIL DATA ---
+# GANTI DENGAN URL API WEB APP BAPAK
 API_URL = "https://script.google.com/macros/s/AKfycbwfHexkGPjRCiwxUpqaWKB6ExMfns_QSMTfbdtJIYC0XHSdxBC0bN0IQeTQJX_hDawaDQ/exec"
 
-@st.cache_data(ttl=60) # Update data setiap 60 detik
+@st.cache_data(ttl=60)
 def load_data():
     try:
         response = requests.get(API_URL)
@@ -18,96 +17,101 @@ def load_data():
             data = response.json()
             df = pd.DataFrame(data)
             
-            # --- PEMBERSIHAN DATA AGAR TIDAK ERROR ---
-            # 1. Pastikan kolom quantity jadi angka
-            df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0)
+            # Ubah semua nama kolom jadi huruf kecil biar aman
+            df.columns = df.columns.str.lower()
             
-            # 2. Pastikan kolom timestamp jadi format waktu
-            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+            # --- BAGIAN INI YANG SAYA REVISI ---
+            # Mapping nama kolom (Kamus Penerjemah)
+            rename_map = {
+                'kode_unit': 'unit',  # <--- INI TAMBAHANNYA
+                'unit id': 'unit', 'id unit': 'unit', 'unit_id': 'unit',
+                'lokasi': 'location', 'loc': 'location',
+                'hm': 'hm', 'hours meter': 'hm',
+                'qty': 'quantity', 'liter': 'quantity',
+                'shift': 'shift',
+                'timestamp': 'timestamp', 'waktu': 'timestamp', 'date': 'timestamp'
+            }
             
-            # 3. Filter hanya data yang statusnya 'ALLOWED'
-            # (Pastikan kolom 'status' ada di JSON Bapak, jika beda sesuaikan namanya)
-            if 'status' in df.columns:
-                 df = df[df['status'].str.contains('ALLOWED', case=False, na=False)]
+            # Ganti nama kolom sesuai kamus di atas
+            df.rename(columns=rename_map, inplace=True)
             
+            # Konversi Tipe Data (Pembersihan)
+            if 'quantity' in df.columns:
+                df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0)
+            if 'timestamp' in df.columns:
+                df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+                
             return df
         else:
-            st.error("Gagal mengambil data dari API. Cek URL Web App.")
+            st.error("Gagal koneksi ke API.")
             return pd.DataFrame()
     except Exception as e:
-        st.error(f"Terjadi kesalahan koneksi: {e}")
+        st.error(f"Error Python: {e}")
         return pd.DataFrame()
 
-# Load Data Awal
 df = load_data()
 
-# --- 2. JUDUL DASHBOARD ---
-st.title("📊 MACO Refueling Dashboard")
-st.markdown("Monitoring penggunaan bahan bakar **Pitstop 39** secara Real-Time.")
-st.divider()
-
-if not df.empty:
-    # --- 3. FILTER SIDEBAR (Sebelah Kiri) ---
-    st.sidebar.header("Filter Data")
-    
-    # Filter Unit
-    all_units = sorted(df["unit"].unique())
-    selected_units = st.sidebar.multiselect("Pilih Unit:", all_units, default=all_units)
-    
-    # Filter Shift (Opsional)
-    all_shifts = df["shift"].unique()
-    selected_shift = st.sidebar.multiselect("Pilih Shift:", all_shifts, default=all_shifts)
-
-    # Terapkan Filter
-    df_filtered = df[
-        (df["unit"].isin(selected_units)) & 
-        (df["shift"].isin(selected_shift))
-    ]
-
-    # --- 4. KARTU RINGKASAN (METRICS) ---
-    col1, col2, col3, col4 = st.columns(4)
-    
-    total_liter = df_filtered['quantity'].sum()
-    total_transaksi = len(df_filtered)
-    # Rata-rata pemakaian
-    avg_liter = df_filtered['quantity'].mean() if total_transaksi > 0 else 0
-    
-    col1.metric("Total Solar Keluar", f"{total_liter:,.0f} L")
-    col2.metric("Total Pengisian", f"{total_transaksi} Unit")
-    col3.metric("Rata-rata per Unit", f"{avg_liter:,.0f} L")
-    
-    # Last Update (Ambil waktu paling baru di data)
-    last_time = df_filtered['timestamp'].max()
-    col4.metric("Data Terakhir", last_time.strftime('%d/%m %H:%M') if pd.notnull(last_time) else "-")
-
-    st.markdown("---")
-
-    # --- 5. GRAFIK VISUAL (Plotly) ---
-    c1, c2 = st.columns((2, 1))
-
-    with c1:
-        st.subheader("Tren Harian Konsumsi Solar")
-        # Group by Tanggal
-        df_daily = df_filtered.groupby(df_filtered['timestamp'].dt.date)['quantity'].sum().reset_index()
-        fig_trend = px.line(df_daily, x='timestamp', y='quantity', markers=True, 
-                            title="Grafik Garis: Total Liter per Hari")
-        st.plotly_chart(fig_trend, use_container_width=True)
-
-    with c2:
-        st.subheader("Perbandingan Shift")
-        df_shift = df_filtered.groupby('shift')['quantity'].sum().reset_index()
-        fig_pie = px.pie(df_shift, values='quantity', names='shift', 
-                         title="Proporsi Siang vs Malam", hole=0.4)
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-    # --- 6. TABEL DATA DETAIL ---
-    st.subheader("Riwayat Logsheet Lengkap")
-    # Tampilkan tabel yang bisa di-sort
-    st.dataframe(
-        df_filtered[['timestamp', 'shift', 'unit', 'location', 'quantity', 'hm']].sort_values(by='timestamp', ascending=False),
-        use_container_width=True,
-        hide_index=True
-    )
-
+# --- 2. CEK DATA ---
+if df.empty:
+    st.warning("Data belum masuk atau API bermasalah.")
 else:
-    st.info("Menunggu data... Pastikan URL API benar atau belum ada transaksi 'ALLOWED'.")
+    # --- 3. JUDUL ---
+    st.title("📊 Monitoring Refueling - Pitstop 39")
+    
+    # Cek kolom wajib (Sekarang harusnya aman)
+    required_cols = ['unit', 'shift', 'quantity']
+    missing = [c for c in required_cols if c not in df.columns]
+    
+    if missing:
+        st.error(f"⚠️ Kolom berikut masih hilang: {missing}")
+        st.info(f"Nama kolom yang tersedia: {list(df.columns)}")
+        st.stop() 
+
+    # --- 4. SIDEBAR FILTER ---
+    st.sidebar.header("Filter")
+    # Urutkan unit biar rapi
+    unique_units = sorted(df["unit"].astype(str).unique())
+    pilihan_unit = st.sidebar.multiselect("Pilih Unit:", unique_units, default=unique_units)
+    
+    # Filter Data
+    df_filtered = df[df["unit"].isin(pilihan_unit)]
+
+    # --- 5. VISUALISASI ---
+    # Baris 1: Ringkasan Angka
+    col1, col2, col3 = st.columns(3)
+    total_qty = df_filtered['quantity'].sum()
+    total_trx = len(df_filtered)
+    
+    col1.metric("Total Solar Keluar", f"{total_qty:,.0f} L")
+    col2.metric("Total Transaksi", f"{total_trx} Unit")
+    # Ambil waktu terakhir update
+    last_update = df_filtered['timestamp'].max()
+    col3.metric("Update Terakhir", str(last_update) if pd.notnull(last_update) else "-")
+    
+    st.divider()
+
+    # Baris 2: Grafik & Tabel
+    c1, c2 = st.columns([1, 1]) # Bagi layar jadi 2 kolom
+    
+    with c1:
+        st.subheader("Konsumsi per Shift")
+        if 'shift' in df_filtered.columns:
+            # Hitung total per shift
+            df_shift = df_filtered.groupby("shift")["quantity"].sum().reset_index()
+            fig = px.bar(df_shift, x="shift", y="quantity", 
+                         title="Total Liter per Shift", color="shift")
+            st.plotly_chart(fig, use_container_width=True)
+            
+    with c2:
+        st.subheader("Top 5 Unit Boros")
+        # Hitung top 5 unit
+        df_top = df_filtered.groupby("unit")["quantity"].sum().nlargest(5).reset_index()
+        fig2 = px.bar(df_top, x="quantity", y="unit", orientation='h',
+                      title="Top Konsumsi Solar", color="quantity")
+        st.plotly_chart(fig2, use_container_width=True)
+    
+    # Baris 3: Tabel Data
+    st.subheader("Riwayat Logsheet Detail")
+    # Tampilkan kolom tertentu saja biar rapi
+    tabel_view = df_filtered[['timestamp', 'shift', 'unit', 'location', 'quantity', 'hm']]
+    st.dataframe(tabel_view.sort_values(by='timestamp', ascending=False), use_container_width=True)
