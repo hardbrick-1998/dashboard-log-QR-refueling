@@ -75,60 +75,75 @@ def load_data():
 df = load_data()
 
 # ==========================================
-# REVISI LANGKAH 4: FILTER & KALKULASI METRIK
+# REVISI LANGKAH 4: FILTER UNIT & DATA LOGIC
 # ==========================================
 if not df.empty:
-    st.sidebar.header("🕹️ Control Panel")
+    # 1. Judul Dashboard Paling Atas (Tengah)
+    st.markdown('<p class="main-title">DASHBOARD REFUELING PITSTOP 39</p>', unsafe_allow_html=True)
+
+    # 2. Letakkan Filter tepat di bawah Judul (Panggung Utama)
     all_units = sorted(df['unit'].unique().tolist())
-    selected_units = st.sidebar.multiselect("Pilih No Lambung Unit:", options=all_units, default=all_units)
     
+    # Gunakan st.multiselect tanpa 'sidebar' agar muncul di tengah dashboard
+    selected_units = st.multiselect(
+        "🔍 Pilih No Lambung Unit (Kosongkan untuk memilih ALL):", 
+        options=all_units, 
+        default=all_units
+    )
+    
+    # Saring data berdasarkan pilihan
     df_filtered = df[df['unit'].isin(selected_units)]
     
-    if not df_filtered.empty:
-        total_qty = df_filtered['quantity'].sum()
-        total_trx = len(df_filtered)
-        
-        # Penanganan Error NaT: Cek apakah ada tanggal yang valid
-        last_update_raw = df_filtered['timestamp'].max()
-        # Jika NaT, maka tampilkan "-"
-        last_update_str = last_update_raw.strftime('%H:%M') if pd.notnull(last_update_raw) else "-"
-        
-        # Kalkulasi Liter/Jam
-        duration_hrs = (df_filtered['timestamp'].max() - df_filtered['timestamp'].min()).total_seconds() / 3600
-        avg_l_per_hr = total_qty / duration_hrs if duration_hrs > 0 else 0
-        
-        # Achievement Rate
-        anomali_rate = 0.1017 
-        achievement_rate = (1 - anomali_rate) * 100
-    else:
-        st.warning("⚠️ Silakan pilih minimal satu unit di sidebar.")
+    # Proteksi jika filter kosong
+    if df_filtered.empty:
+        st.warning("⚠️ Silakan pilih minimal satu unit pada filter di atas.")
         st.stop()
+
+    # 3. Kalkulasi Metrik (Berdasarkan df_filtered)
+    total_qty = df_filtered['quantity'].sum()
+    total_trx = len(df_filtered)
+    
+    # NaT Check untuk Last Update
+    last_update_raw = df_filtered['timestamp'].max()
+    last_update_str = last_update_raw.strftime('%d %b, %H:%M') if pd.notnull(last_update_raw) else "-"
+    
+    # Liter/Jam
+    duration_hrs = (df_filtered['timestamp'].max() - df_filtered['timestamp'].min()).total_seconds() / 3600
+    avg_l_per_hr = total_qty / duration_hrs if duration_hrs > 0 else 0
+    
+    # Achievement Rate
+    anomali_rate = 0.1017 
+    achievement_rate = (1 - anomali_rate) * 100
+    
     
 
 # ==========================================
-# REVISI LANGKAH 5: HEADER & METRIC CARDS
+# REVISI LANGKAH 5: METRIC CARDS & TAB SYSTEM
 # ==========================================
-    st.markdown('<p class="main-title">DASHBOARD REFUELING PITSTOP 39</p>', unsafe_allow_html=True)
+    # Beri sedikit ruang antara filter dan kartu
+    st.write("") 
+
+    # Baris Kartu Ringkasan (Summary)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total Solar", f"{total_qty:,.0f} L")
+    c2.metric("Total Transaksi", f"{total_trx} Trx")
+    c3.metric("Avg L/Jam Unit", f"{avg_l_per_hr:.1f} L/Hr")
+    c4.metric("Update Terakhir", last_update_str)
+
+    st.write("---")
     
+    # Sistem Tab untuk memisahkan Visual dan Data
     tab1, tab2 = st.tabs(["📊 RINGKASAN VISUAL", "📋 LOGSHEET KESELURUHAN"])
-
-    with tab1:
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Total Solar", f"{total_qty:,.0f} L")
-        c2.metric("Total Unit", f"{total_trx} Trx")
-        c3.metric("Avg L/Jam Unit", f"{avg_l_per_hr:.1f} L/Hr")
-        c4.metric("Last Update", last_update_str) # <--- MENGGUNAKAN VARIABEL YANG SUDAH AMAN
-
-        st.write("---")
 
 # ==========================================
 # REVISI LANGKAH 6: VISUALISASI GRAFIK (TAB 1)
 # ==========================================
+    with tab1: # <--- WAJIB TAMBAHKAN INI AGAR GRAFIK MASUK KE TAB 1
         # --- BARIS 1: TREN (FILTERED) & GLOBAL TOP UNIT (LOCKED) ---
         row1_c1, row1_c2 = st.columns([1.5, 1])
 
         with row1_c1:
-            # Tren Harian (Mengikuti Filter Sidebar)
+            # Tren Harian (Mengikuti Filter)
             df_daily = df_filtered.copy()
             df_daily['date_only'] = df_daily['timestamp'].dt.date
             df_daily = df_daily.groupby('date_only')['quantity'].sum().reset_index()
@@ -157,6 +172,7 @@ if not df.empty:
             },
             title = {'text': "Pencapaian Efisiensi (%)", 'font': {'color': "#00e5ff", 'size': 18}}
         ))
+        # Margin 't' (top) 120 agar judul "Pencapaian Efisiensi" tidak kepotong
         fig_gauge.update_layout(height=350, margin=dict(l=20, r=20, t=120, b=20), paper_bgcolor='rgba(0,0,0,0)', font={'color': "#00e5ff"})
         st.plotly_chart(fig_gauge, use_container_width=True)
 
