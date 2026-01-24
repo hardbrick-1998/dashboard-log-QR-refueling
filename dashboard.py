@@ -148,11 +148,19 @@ if not df.empty:
     # Beri sedikit ruang antara filter dan kartu
     st.write("") 
 
-    # Baris Kartu Ringkasan (Summary)
+    # Baris Kartu Ringkasan (Summary) 
     c1, c2, c3, c4 = st.columns(4)
+    
+    # Kartu 1: Total Volume
     c1.metric("Total Solar", f"{total_qty:,.0f} L")
-    c2.metric("Total Transaksi", f"{total_trx} Trx")
+    
+    # Kartu 2: TOTAL PENGISIAN (Perubahan Satuan ke 'Kali')
+    c2.metric("Total Pengisian", f"{total_trx} Kali") 
+    
+    # Kartu 3: Performa Unit
     c3.metric("Avg L/Jam Unit", f"{avg_l_per_hr:.1f} L/Hr")
+    
+    # Kartu 4: Status Terakhir
     c4.metric("Update Terakhir", last_update_str)
 
     st.write("---")
