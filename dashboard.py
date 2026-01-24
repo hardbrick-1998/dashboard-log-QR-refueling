@@ -78,54 +78,65 @@ df = load_data()
 # REVISI LANGKAH 4: FILTER UNIT & DATA LOGIC
 # ==========================================
 if not df.empty:
-    # 1. Judul Dashboard Paling Atas (Tengah)
+    # 1. Judul Dashboard
     st.markdown('<p class="main-title">DASHBOARD REFUELING PITSTOP 39</p>', unsafe_allow_html=True)
 
-    # 2. Letakkan Filter & Tombol Refresh berdampingan
-    # Membuat 2 kolom: kolom_kiri untuk filter, kolom_kanan untuk tombol
+    # 2. Filter Dropdown & Tombol Refresh
     col_filter, col_btn = st.columns([4, 1]) 
-
     with col_filter:
         unit_list = sorted(df['unit'].unique().tolist())
         filter_options = ["ALL UNITS"] + unit_list
-        selected_unit = st.selectbox(
-            "🔍 Filter No Lambung Unit:", 
-            options=filter_options, 
-            index=0
-        )
+        selected_unit = st.selectbox("🔍 Filter No Lambung Unit:", options=filter_options, index=0)
 
     with col_btn:
-        st.write(" ") # Memberi jarak atas agar tombol sejajar dengan filter
+        st.write(" ")
         st.write(" ") 
-        # Tombol Refresh untuk membersihkan cache dan menarik data terbaru
         if st.button("🔄 Refresh Data", use_container_width=True):
-            st.cache_data.clear() # Membersihkan cache
-            st.rerun() # Menjalankan ulang aplikasi
+            st.cache_data.clear()
+            st.rerun()
 
     # 3. Logika Penyaringan Data
-    if selected_unit == "ALL UNITS":
-        df_filtered = df
-    else:
-        df_filtered = df[df['unit'] == selected_unit]
+    df_filtered = df if selected_unit == "ALL UNITS" else df[df['unit'] == selected_unit]
     
-    # Proteksi tambahan
     if df_filtered.empty:
         st.warning("⚠️ Tidak ada data untuk unit yang dipilih.")
         st.stop()
 
-    # 4. Kalkulasi Metrik (Berdasarkan df_filtered)
+    # 4. KALKULASI METRIK (PERBAIKAN LOGIKA ANOMALI)
     total_qty = df_filtered['quantity'].sum()
     total_trx = len(df_filtered)
     
-    # NaT Check untuk Last Update
+    # --- RUMUS FIXED: AVERAGE OF AVERAGES ---
+    def calculate_correct_avg(data):
+        # Ambil daftar unik unit yang ada di data saat ini
+        active_units = data['unit'].unique()
+        individual_rates = []
+        
+        for unit in active_units:
+            unit_data = data[data['unit'] == unit]
+            # Hitung durasi kerja unit tersebut (Max - Min Timestamp)
+            duration = (unit_data['timestamp'].max() - unit_data['timestamp'].min()).total_seconds() / 3600
+            
+            # Pastikan unit punya lebih dari 1 transaksi (durasi > 0)
+            if duration > 0:
+                unit_qty = unit_data['quantity'].sum()
+                rate = unit_qty / duration
+                individual_rates.append(rate)
+        
+        # Hitung rata-rata dari seluruh list rate yang terkumpul
+        # Pembagi (len) otomatis menyesuaikan jumlah variasi unit yang valid
+        if len(individual_rates) > 0:
+            return sum(individual_rates) / len(individual_rates)
+        return 0
+
+    # Jalankan perhitungan
+    avg_l_per_hr = calculate_correct_avg(df_filtered)
+    
+    # Metrik Pendukung
     last_update_raw = df_filtered['timestamp'].max()
     last_update_str = last_update_raw.strftime('%d %b, %H:%M') if pd.notnull(last_update_raw) else "-"
     
-    # Kalkulasi Liter/Jam
-    duration_hrs = (df_filtered['timestamp'].max() - df_filtered['timestamp'].min()).total_seconds() / 3600
-    avg_l_per_hr = total_qty / duration_hrs if duration_hrs > 0 else 0
-    
-    # Achievement Rate
+    # Target Efisiensi
     anomali_rate = 0.1017 
     achievement_rate = (1 - anomali_rate) * 100
     
@@ -152,30 +163,63 @@ if not df.empty:
 # ==========================================
 # REVISI LANGKAH 6: VISUALISASI GRAFIK (TAB 1)
 # ==========================================
-    with tab1: # <--- WAJIB TAMBAHKAN INI AGAR GRAFIK MASUK KE TAB 1
-        # --- BARIS 1: TREN (FILTERED) & GLOBAL TOP UNIT (LOCKED) ---
+    with tab1: 
+        # --- BARIS 1: TREN DETAIL (FILTERED) & GLOBAL TOP UNIT (LOCKED) ---
         row1_c1, row1_c2 = st.columns([1.5, 1])
 
         with row1_c1:
-            # Tren Harian (Mengikuti Filter)
-            df_daily = df_filtered.copy()
-            df_daily['date_only'] = df_daily['timestamp'].dt.date
-            df_daily = df_daily.groupby('date_only')['quantity'].sum().reset_index()
+            # 1. Gunakan data terfilter & sortir berdasarkan waktu (agar garis menyambung rapi)
+            df_trend = df_filtered.copy().sort_values('timestamp')
             
-            fig_trend = px.area(df_daily, x='date_only', y='quantity', title="Tren Konsumsi Harian (Terfilter)")
-            fig_trend.update_traces(mode='lines+markers', line_color='#00e5ff', fillcolor='rgba(0, 229, 255, 0.2)')
-            fig_trend.update_layout(height=300, margin=dict(l=10, r=10, t=80, b=10), template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)')
+            # 2. Buat Grafik Area menggunakan timestamp mentah
+            fig_trend = px.area(
+                df_trend, 
+                x='timestamp', 
+                y='quantity', 
+                title="📈 Tren Konsumsi Solar (Detail per Waktu)",
+                hover_data={'timestamp': '|%d %b %Y, %H:%M'} # Detail info saat kursor menempel
+            )
+            
+            # 3. Styling & Format Sumbu X Bertingkat (Jam di Atas, Tanggal di Bawah)
+            fig_trend.update_traces(
+                mode='lines+markers', 
+                line_color='#00e5ff', 
+                fillcolor='rgba(0, 229, 255, 0.2)',
+                marker=dict(size=6)
+            )
+            
+            fig_trend.update_layout(
+                height=350, 
+                margin=dict(l=10, r=10, t=80, b=10), 
+                template="plotly_dark", 
+                plot_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(
+                    title="Waktu Pengisian",
+                    # Format bertingkat: Jam:Menit [Baris Baru] Tanggal-Bulan-Tahun
+                    tickformat="%H:%M\n%d %b %Y", 
+                    tickangle=0,
+                    showgrid=True,
+                    gridcolor='rgba(255, 255, 255, 0.1)'
+                ),
+                yaxis_title="Quantity (Liter)"
+            )
             st.plotly_chart(fig_trend, use_container_width=True)
 
         with row1_c2:
-            # Global Top 5 Unit (TERKUNCI KE ALL DATA - menggunakan 'df' asli)
+            # Global Top 5 Unit (TETAP TERKUNCI KE ALL DATA - Menggunakan 'df' asli)
             df_top_global = df.groupby("unit")["quantity"].sum().nlargest(5).reset_index()
-            fig_top_all = px.bar(df_top_global, x="quantity", y="unit", orientation='h', 
-                                 title="🏆 Global Top 5 Unit (All Data)", color_discrete_sequence=['#00e5ff'])
-            fig_top_all.update_layout(height=300, margin=dict(l=10, r=10, t=80, b=10), template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)')
+            fig_top_all = px.bar(
+                df_top_global, 
+                x="quantity", 
+                y="unit", 
+                orientation='h', 
+                title="🏆 Global Top 5 Unit (All Data)", 
+                color_discrete_sequence=['#00e5ff']
+            )
+            fig_top_all.update_layout(height=350, margin=dict(l=10, r=10, t=80, b=10), template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_top_all, use_container_width=True)
 
-        # --- BARIS 2: SPEEDOMETER (FILTERED) ---
+        # --- BARIS 2: SPEEDOMETER EFISIENSI (FILTERED) ---
         st.write("---")
         fig_gauge = go.Figure(go.Indicator(
             mode = "gauge+number", value = achievement_rate,
@@ -186,7 +230,8 @@ if not df.empty:
             },
             title = {'text': "Pencapaian Efisiensi (%)", 'font': {'color': "#00e5ff", 'size': 18}}
         ))
-        # Margin 't' (top) 120 agar judul "Pencapaian Efisiensi" tidak kepotong
+        
+        # Margin atas 120 agar judul tidak kepotong
         fig_gauge.update_layout(height=350, margin=dict(l=20, r=20, t=120, b=20), paper_bgcolor='rgba(0,0,0,0)', font={'color': "#00e5ff"})
         st.plotly_chart(fig_gauge, use_container_width=True)
 
