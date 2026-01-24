@@ -102,41 +102,47 @@ if not df.empty:
         st.warning("⚠️ Tidak ada data untuk unit yang dipilih.")
         st.stop()
 
-    # 4. KALKULASI METRIK (PERBAIKAN LOGIKA ANOMALI)
+    # 4. FUNGSI ANALISA PERFORMA (L/HR) INDIVIDUAL
+    def get_performance_df(data_source):
+        """Menghitung L/Hr untuk setiap unit dalam dataset yang diberikan"""
+        active_units = data_source['unit'].unique()
+        performance_data = []
+        
+        for unit in active_units:
+            u_data = data_source[data_source['unit'] == unit]
+            # Hitung durasi (Max - Min Timestamp)
+            duration = (u_data['timestamp'].max() - u_data['timestamp'].min()).total_seconds() / 3600
+            
+            if duration > 0:
+                total_liter = u_data['quantity'].sum()
+                rate = total_liter / duration
+                performance_data.append({'unit': unit, 'l_hr': rate})
+        
+        return pd.DataFrame(performance_data)
+
+    # --- EKSEKUSI DATA PERFORMA ---
+    
+    # A. Performa Global (Untuk Grafik Top 5 Terboros - Selalu ALL DATA)
+    df_perf_global = get_performance_df(df)
+    
+    # B. Performa Terfilter (Untuk Kartu Metrik Avg L/Jam Unit)
+    df_perf_filtered = get_performance_df(df_filtered)
+    
+    # Hitung nilai rata-rata untuk kartu metrik (Average of Averages)
+    if not df_perf_filtered.empty:
+        avg_l_per_hr = df_perf_filtered['l_hr'].mean()
+    else:
+        avg_l_per_hr = 0
+
+    # 5. METRIK PENDUKUNG LAINNYA
     total_qty = df_filtered['quantity'].sum()
     total_trx = len(df_filtered)
     
-    # --- RUMUS FIXED: AVERAGE OF AVERAGES ---
-    def calculate_correct_avg(data):
-        # Ambil daftar unik unit yang ada di data saat ini
-        active_units = data['unit'].unique()
-        individual_rates = []
-        
-        for unit in active_units:
-            unit_data = data[data['unit'] == unit]
-            # Hitung durasi kerja unit tersebut (Max - Min Timestamp)
-            duration = (unit_data['timestamp'].max() - unit_data['timestamp'].min()).total_seconds() / 3600
-            
-            # Pastikan unit punya lebih dari 1 transaksi (durasi > 0)
-            if duration > 0:
-                unit_qty = unit_data['quantity'].sum()
-                rate = unit_qty / duration
-                individual_rates.append(rate)
-        
-        # Hitung rata-rata dari seluruh list rate yang terkumpul
-        # Pembagi (len) otomatis menyesuaikan jumlah variasi unit yang valid
-        if len(individual_rates) > 0:
-            return sum(individual_rates) / len(individual_rates)
-        return 0
-
-    # Jalankan perhitungan
-    avg_l_per_hr = calculate_correct_avg(df_filtered)
-    
-    # Metrik Pendukung
+    # Ambil waktu terakhir
     last_update_raw = df_filtered['timestamp'].max()
     last_update_str = last_update_raw.strftime('%d %b, %H:%M') if pd.notnull(last_update_raw) else "-"
     
-    # Target Efisiensi
+    # Perhitungan Efisiensi (Dummy Target)
     anomali_rate = 0.1017 
     achievement_rate = (1 - anomali_rate) * 100
     
@@ -172,60 +178,56 @@ if not df.empty:
 # REVISI LANGKAH 6: VISUALISASI GRAFIK (TAB 1)
 # ==========================================
     with tab1: 
-        # --- BARIS 1: TREN DETAIL (FILTERED) & GLOBAL TOP UNIT (LOCKED) ---
+        # --- BARIS 1: TREN DETAIL (FILTERED) & GLOBAL TOP TERBOROS (LOCKED) ---
         row1_c1, row1_c2 = st.columns([1.5, 1])
 
         with row1_c1:
-            # 1. Gunakan data terfilter & sortir berdasarkan waktu (agar garis menyambung rapi)
+            # 1. Tren Konsumsi Detail (Mengikuti Filter)
             df_trend = df_filtered.copy().sort_values('timestamp')
-            
-            # 2. Buat Grafik Area menggunakan timestamp mentah
             fig_trend = px.area(
                 df_trend, 
                 x='timestamp', 
                 y='quantity', 
                 title="📈 Tren Konsumsi Solar (Detail per Waktu)",
-                hover_data={'timestamp': '|%d %b %Y, %H:%M'} # Detail info saat kursor menempel
+                hover_data={'timestamp': '|%d %b %Y, %H:%M'}
             )
-            
-            # 3. Styling & Format Sumbu X Bertingkat (Jam di Atas, Tanggal di Bawah)
             fig_trend.update_traces(
                 mode='lines+markers', 
                 line_color='#00e5ff', 
                 fillcolor='rgba(0, 229, 255, 0.2)',
                 marker=dict(size=6)
             )
-            
             fig_trend.update_layout(
-                height=350, 
-                margin=dict(l=10, r=10, t=80, b=10), 
-                template="plotly_dark", 
-                plot_bgcolor='rgba(0,0,0,0)',
-                xaxis=dict(
-                    title="Waktu Pengisian",
-                    # Format bertingkat: Jam:Menit [Baris Baru] Tanggal-Bulan-Tahun
-                    tickformat="%H:%M\n%d %b %Y", 
-                    tickangle=0,
-                    showgrid=True,
-                    gridcolor='rgba(255, 255, 255, 0.1)'
-                ),
-                yaxis_title="Quantity (Liter)"
+                height=350, margin=dict(l=10, r=10, t=80, b=10), 
+                template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(title="Waktu Pengisian", tickformat="%H:%M\n%d %b %Y", tickangle=0)
             )
             st.plotly_chart(fig_trend, use_container_width=True)
 
         with row1_c2:
-            # Global Top 5 Unit (TETAP TERKUNCI KE ALL DATA - Menggunakan 'df' asli)
-            df_top_global = df.groupby("unit")["quantity"].sum().nlargest(5).reset_index()
-            fig_top_all = px.bar(
-                df_top_global, 
-                x="quantity", 
+            # 2. GRAFIK TOP 5 UNIT TERBOROS (BERDASARKAN L/HR)
+            # Ambil 5 unit dengan l_hr tertinggi dari data global
+            df_boros = df_perf_global.nlargest(5, 'l_hr').sort_values('l_hr', ascending=True)
+            
+            fig_boros = px.bar(
+                df_boros, 
+                x="l_hr", 
                 y="unit", 
                 orientation='h', 
-                title="🏆 Global Top 5 Unit (All Data)", 
-                color_discrete_sequence=['#00e5ff']
+                title="🔥 Top 5 Unit Terboros (Avg L/Hr)", 
+                color_discrete_sequence=['#ff4b4b'], # Warna merah untuk indikasi boros
+                text_auto='.1f' # Menampilkan angka L/Hr di ujung batang
             )
-            fig_top_all.update_layout(height=350, margin=dict(l=10, r=10, t=80, b=10), template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig_top_all, use_container_width=True)
+            
+            fig_boros.update_layout(
+                height=350, 
+                margin=dict(l=10, r=10, t=80, b=10), 
+                template="plotly_dark", 
+                plot_bgcolor='rgba(0,0,0,0)',
+                xaxis_title="Average Liter per Hour",
+                yaxis_title="No Lambung Unit"
+            )
+            st.plotly_chart(fig_boros, use_container_width=True)
 
         # --- BARIS 2: SPEEDOMETER EFISIENSI (FILTERED) ---
         st.write("---")
@@ -239,8 +241,10 @@ if not df.empty:
             title = {'text': "Pencapaian Efisiensi (%)", 'font': {'color': "#00e5ff", 'size': 18}}
         ))
         
-        # Margin atas 120 agar judul tidak kepotong
-        fig_gauge.update_layout(height=350, margin=dict(l=20, r=20, t=120, b=20), paper_bgcolor='rgba(0,0,0,0)', font={'color': "#00e5ff"})
+        fig_gauge.update_layout(
+            height=350, margin=dict(l=20, r=20, t=120, b=20), 
+            paper_bgcolor='rgba(0,0,0,0)', font={'color': "#00e5ff"}
+        )
         st.plotly_chart(fig_gauge, use_container_width=True)
 
 # ==========================================
