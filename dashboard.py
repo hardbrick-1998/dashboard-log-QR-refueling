@@ -33,45 +33,45 @@ st.markdown("""
 # ==========================================
 # REVISI LANGKAH 3: KONEKSI DATA & PEMBERSIHAN
 # ==========================================
+
+# --- ALAMAT GUDANG DATA (WAJIB ADA) ---
 SHEET_ID = "1NN_rGKQBZzhUIKnfY1aOs1gvCP2aFiVo6j1RFagtb4s"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
 @st.cache_data(ttl=60)
 def load_data():
     try:
-        df = pd.read_csv(CSV_URL)
-        # 1. Bersihkan nama kolom dari spasi dan jadikan huruf kecil
+        # Sekarang CSV_URL di bawah ini sudah punya "definisi"
+        df = pd.read_csv(CSV_URL) 
+        
+        # 1. Bersihkan nama kolom
         df.columns = df.columns.str.lower().str.strip()
         
-        # 2. KAMUS PENERJEMAH KOLOM (Pastikan nama di kiri sesuai yang ada di Sheet)
+        # 2. Mapping Nama Kolom
         rename_map = {
-            'kode unit': 'unit', 'unit id': 'unit', 'kode_unit': 'unit',
-            'qty': 'quantity', 'liter': 'quantity', 'jumlah': 'quantity',
-            'date': 'timestamp', 'tanggal': 'timestamp', 'waktu': 'timestamp', 
-            'tanggal aktual': 'timestamp', 'timestamp': 'timestamp',
-            'hours meter': 'hm', 'hour meter': 'hm', 'hm': 'hm' # Tambahkan ini agar HM terbaca
+            'timestamp': 'timestamp', 'kode unit': 'unit', 
+            'lokasi': 'location', 'quantity': 'quantity', 'hm': 'hm'
         }
         df.rename(columns=rename_map, inplace=True)
         
-        # 3. Konversi Tipe Data (Handle NaT/None secara aman)
+        # 3. Hapus baris kosong
+        df = df.dropna(subset=['unit', 'quantity'], how='all')
+        
+        # 4. Paksa format Tanggal dd/mm/yyyy hh:mm:ss
         if 'timestamp' in df.columns:
-            # Menggunakan format dayfirst=True jika tanggal di sheet Mas Faiz formatnya DD/MM/YYYY
             df['timestamp'] = pd.to_datetime(df['timestamp'], dayfirst=True, errors='coerce')
             
+        # 5. Standarisasi Tipe Data
+        df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0)
         if 'shift' in df.columns:
             df['shift'] = df['shift'].astype(str).str.upper().str.strip()
-            
-        if 'quantity' in df.columns:
-            df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0)
-            
-        if 'hm' in df.columns:
-            df['hm'] = pd.to_numeric(df['hm'], errors='coerce')
             
         return df
     except Exception as e:
         st.error(f"Gagal memuat data: {e}")
         return pd.DataFrame()
 
+# Panggil fungsinya
 df = load_data()
 
 # ==========================================
@@ -124,68 +124,56 @@ if not df.empty:
 # ==========================================
 # REVISI LANGKAH 6: VISUALISASI GRAFIK (TAB 1)
 # ==========================================
-        col_left, col_right = st.columns([1, 1.5])
+        # --- BARIS 1: TREN (FILTERED) & GLOBAL TOP UNIT (LOCKED) ---
+        row1_c1, row1_c2 = st.columns([1.5, 1])
 
-        with col_left:
-            # Gauge Achievement (Tetap sama, pastikan margin aman)
-            fig_gauge = go.Figure(go.Indicator(
-                mode = "gauge+number", value = achievement_rate,
-                gauge = {
-                    'axis': {'range': [80, 100], 'tickcolor': "#00e5ff"},
-                    'bar': {'color': "#00e5ff"}, 'bgcolor': "#1b263b",
-                    'threshold': {'line': {'color': "red", 'width': 4}, 'value': 99.9}
-                },
-                title = {'text': "Pencapaian Efisiensi (%)", 'font': {'color': "#00e5ff", 'size': 16}}
-            ))
-            fig_gauge.update_layout(height=300, margin=dict(l=20, r=20, t=120, b=10), 
-                                    paper_bgcolor='rgba(0,0,0,0)', font={'color': "#00e5ff"})
-            st.plotly_chart(fig_gauge, use_container_width=True)
-
-        with col_right:
-            # --- GRAFIK BARU: PEMAKAIAN PER TANGGAL ---
-            # 1. Siapkan data harian
+        with row1_c1:
+            # Tren Harian (Mengikuti Filter Sidebar)
             df_daily = df_filtered.copy()
             df_daily['date_only'] = df_daily['timestamp'].dt.date
             df_daily = df_daily.groupby('date_only')['quantity'].sum().reset_index()
             
-            # 2. Buat Grafik Area/Garis agar mirip Power BI
-            fig_trend = px.area(df_daily, x='date_only', y='quantity', 
-                                title="Tren Konsumsi Solar Harian (L)",
-                                markers=True)
-            
-            # 3. Styling Futuristik
-            fig_trend.update_traces(line_color='#00e5ff', fillcolor='rgba(0, 229, 255, 0.2)')
-            fig_trend.update_layout(height=300, margin=dict(l=10, r=10, t=80, b=10), 
-                                    template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
-                                    xaxis_title="Tanggal", yaxis_title="Total Liter")
-            
+            fig_trend = px.area(df_daily, x='date_only', y='quantity', title="Tren Konsumsi Harian (Terfilter)")
+            fig_trend.update_traces(mode='lines+markers', line_color='#00e5ff', fillcolor='rgba(0, 229, 255, 0.2)')
+            fig_trend.update_layout(height=300, margin=dict(l=10, r=10, t=80, b=10), template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_trend, use_container_width=True)
 
-        # Baris Peringkat Unit
-        st.subheader("Top 5 Unit Pengisian Terbanyak")
-        df_top = df_filtered.groupby("unit")["quantity"].sum().nlargest(5).reset_index()
-        fig_top = px.bar(df_top, x="quantity", y="unit", orientation='h', 
-                         color_discrete_sequence=['#00e5ff'])
-        fig_top.update_layout(height=250, template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_top, use_container_width=True)
+        with row1_c2:
+            # Global Top 5 Unit (TERKUNCI KE ALL DATA - menggunakan 'df' asli)
+            df_top_global = df.groupby("unit")["quantity"].sum().nlargest(5).reset_index()
+            fig_top_all = px.bar(df_top_global, x="quantity", y="unit", orientation='h', 
+                                 title="🏆 Global Top 5 Unit (All Data)", color_discrete_sequence=['#00e5ff'])
+            fig_top_all.update_layout(height=300, margin=dict(l=10, r=10, t=80, b=10), template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_top_all, use_container_width=True)
+
+        # --- BARIS 2: SPEEDOMETER (FILTERED) ---
+        st.write("---")
+        fig_gauge = go.Figure(go.Indicator(
+            mode = "gauge+number", value = achievement_rate,
+            gauge = {
+                'axis': {'range': [80, 100], 'tickcolor': "#00e5ff"},
+                'bar': {'color': "#00e5ff"}, 'bgcolor': "#1b263b",
+                'threshold': {'line': {'color': "red", 'width': 4}, 'value': 99.9}
+            },
+            title = {'text': "Pencapaian Efisiensi (%)", 'font': {'color': "#00e5ff", 'size': 18}}
+        ))
+        fig_gauge.update_layout(height=350, margin=dict(l=20, r=20, t=120, b=20), paper_bgcolor='rgba(0,0,0,0)', font={'color': "#00e5ff"})
+        st.plotly_chart(fig_gauge, use_container_width=True)
 
 # ==========================================
 # REVISI LANGKAH 7: TABEL DETAIL (TAB 2)
 # ==========================================
     with tab2:
         st.subheader("📋 Riwayat Lengkap Logsheet (Terfilter)")
-        # Mengurutkan berdasarkan timestamp terbaru
+        
+        # Sortir berdasarkan waktu terbaru
         df_full = df_filtered.sort_values(by='timestamp', ascending=False).copy()
         
-        # Pastikan kolom timestamp diformat string hanya jika datanya ada
-        if not df_full['timestamp'].isna().all():
-            df_full['timestamp'] = df_full['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        # Ubah format tampilan tanggal agar terbaca di tabel
+        df_full['timestamp'] = df_full['timestamp'].dt.strftime('%d/%m/%Y %H:%M:%S')
         
-        # Mengisi nilai HM yang kosong dengan "-" agar lebih rapi dilihat
-        if 'hm' in df_full.columns:
-            df_full['hm'] = df_full['hm'].fillna("-")
-
-        st.dataframe(df_full, use_container_width=True, height=550)
+        # Tampilkan tabel tanpa Index asli agar urutannya tidak melompat
+        st.dataframe(df_full, use_container_width=True, height=600, hide_index=True)
 
 else:
     st.warning("Menunggu data... Pastikan Google Sheet Anda dapat diakses publik (CSV Mode).")
