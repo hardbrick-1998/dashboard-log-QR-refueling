@@ -81,25 +81,39 @@ if not df.empty:
     # 1. Judul Dashboard Paling Atas (Tengah)
     st.markdown('<p class="main-title">DASHBOARD REFUELING PITSTOP 39</p>', unsafe_allow_html=True)
 
-    # 2. Letakkan Filter tepat di bawah Judul (Panggung Utama)
-    all_units = sorted(df['unit'].unique().tolist())
+    # 2. Letakkan Filter & Tombol Refresh berdampingan
+    # Membuat 2 kolom: kolom_kiri untuk filter, kolom_kanan untuk tombol
+    col_filter, col_btn = st.columns([4, 1]) 
+
+    with col_filter:
+        unit_list = sorted(df['unit'].unique().tolist())
+        filter_options = ["ALL UNITS"] + unit_list
+        selected_unit = st.selectbox(
+            "🔍 Filter No Lambung Unit:", 
+            options=filter_options, 
+            index=0
+        )
+
+    with col_btn:
+        st.write(" ") # Memberi jarak atas agar tombol sejajar dengan filter
+        st.write(" ") 
+        # Tombol Refresh untuk membersihkan cache dan menarik data terbaru
+        if st.button("🔄 Refresh Data", use_container_width=True):
+            st.cache_data.clear() # Membersihkan cache
+            st.rerun() # Menjalankan ulang aplikasi
+
+    # 3. Logika Penyaringan Data
+    if selected_unit == "ALL UNITS":
+        df_filtered = df
+    else:
+        df_filtered = df[df['unit'] == selected_unit]
     
-    # Gunakan st.multiselect tanpa 'sidebar' agar muncul di tengah dashboard
-    selected_units = st.multiselect(
-        "🔍 Pilih No Lambung Unit (Kosongkan untuk memilih ALL):", 
-        options=all_units, 
-        default=all_units
-    )
-    
-    # Saring data berdasarkan pilihan
-    df_filtered = df[df['unit'].isin(selected_units)]
-    
-    # Proteksi jika filter kosong
+    # Proteksi tambahan
     if df_filtered.empty:
-        st.warning("⚠️ Silakan pilih minimal satu unit pada filter di atas.")
+        st.warning("⚠️ Tidak ada data untuk unit yang dipilih.")
         st.stop()
 
-    # 3. Kalkulasi Metrik (Berdasarkan df_filtered)
+    # 4. Kalkulasi Metrik (Berdasarkan df_filtered)
     total_qty = df_filtered['quantity'].sum()
     total_trx = len(df_filtered)
     
@@ -107,7 +121,7 @@ if not df.empty:
     last_update_raw = df_filtered['timestamp'].max()
     last_update_str = last_update_raw.strftime('%d %b, %H:%M') if pd.notnull(last_update_raw) else "-"
     
-    # Liter/Jam
+    # Kalkulasi Liter/Jam
     duration_hrs = (df_filtered['timestamp'].max() - df_filtered['timestamp'].min()).total_seconds() / 3600
     avg_l_per_hr = total_qty / duration_hrs if duration_hrs > 0 else 0
     
