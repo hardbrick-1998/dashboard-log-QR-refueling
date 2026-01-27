@@ -191,11 +191,11 @@ if not df.empty:
     # Setup Tab
     tab1, tab2 = st.tabs(["📊 RINGKASAN VISUAL", "📋 LOGSHEET KESELURUHAN"])
 
-    # ==========================================
-# LANGKAH 6: VISUALISASI GRAFIK
+# ==========================================
+# LANGKAH 6: VISUALISASI GRAFIK (NAVIGASI HARIAN)
 # ==========================================
     with tab1: 
-        # --- BARIS 1: GRAFIK ATAS ---
+        # --- BARIS 1: GRAFIK TREN & TOP 5 (TETAP) ---
         row1_c1, row1_c2 = st.columns([1.5, 1])
 
         with row1_c1:
@@ -225,7 +225,7 @@ if not df.empty:
             )
             st.plotly_chart(fig_boros, use_container_width=True)
 
-        # --- BARIS 2: SPEEDOMETER & JAM DIGITAL ---
+        # --- BARIS 2: SPEEDOMETER & JAM DIGITAL (TETAP) ---
         st.write("---")
         col_gauge, col_clock = st.columns([2, 1])
 
@@ -246,19 +246,87 @@ if not df.empty:
             st.plotly_chart(fig_gauge, use_container_width=True)
 
         with col_clock:
-            # --- PASTIKAN HTML DI BAWAH INI RATA KIRI (JANGAN ADA SPASI DI DEPANNYA) ---
             html_clock = """
 <div class="clock-card">
 <p style="color: #888; font-size: 14px; margin-bottom: 5px;">TARGET DURASI / UNIT</p>
-
 <div class="digital-font" style="font-size: 40px;">
 08:00 <span style="font-size: 20px; color: #00e5ff;">MENIT</span>
 </div>
-
 <p style="color: #00e5ff; font-size: 14px; margin-top: 10px; font-weight: bold;">DEXTER SOP COMPLIANCE</p>
 </div>
 """
             st.markdown(html_clock, unsafe_allow_html=True)
+
+        # --- BARIS 3: GRAFIK AKTIVITAS HARIAN (FITUR BARU) ---
+        st.write("---")
+        st.markdown("### 📊 Analisa Kepadatan Antrean (Traffic Harian)")
+        
+        # 1. SETUP SESSION STATE (Untuk menyimpan tanggal yang dipilih)
+        if 'chart_date' not in st.session_state:
+            # Default: Tanggal terakhir di data
+            st.session_state.chart_date = df['timestamp'].max().date()
+
+        # 2. TOMBOL NAVIGASI (Prev - Tanggal - Next)
+        c_prev, c_date, c_next = st.columns([1, 4, 1])
+        
+        with c_prev:
+            if st.button("⬅️ Hari Sebelumnya", use_container_width=True):
+                st.session_state.chart_date -= pd.Timedelta(days=1)
+                st.rerun() # Refresh agar grafik update
+
+        with c_next:
+            if st.button("Hari Setelahnya ➡️", use_container_width=True):
+                st.session_state.chart_date += pd.Timedelta(days=1)
+                st.rerun() # Refresh agar grafik update
+        
+        with c_date:
+            # Tampilkan tanggal yang sedang dipilih dengan format cantik
+            current_str = st.session_state.chart_date.strftime("%A, %d %B %Y")
+            st.markdown(f"<h3 style='text-align: center; color: #00e5ff; margin: 0;'>{current_str}</h3>", unsafe_allow_html=True)
+
+        # 3. FILTER DATA BERDASARKAN TANGGAL DI SESSION STATE
+        # Kita pakai 'df' (Global) agar tidak terpengaruh filter unit di atas
+        df_daily = df[df['timestamp'].dt.date == st.session_state.chart_date].copy()
+
+        if not df_daily.empty:
+            # Kelompokkan per Jam
+            df_daily['jam'] = df_daily['timestamp'].dt.hour
+            hourly_counts = df_daily.groupby('jam').size().reset_index(name='jumlah')
+            
+            # Pastikan format jam urut
+            hourly_counts = hourly_counts.sort_values('jam')
+            
+            # Buat kolom Label Jam (misal: 08:00, 09:00)
+            hourly_counts['jam_label'] = hourly_counts['jam'].apply(lambda x: f"{x:02d}:00")
+
+            # 4. BUAT GRAFIK BATANG BESAR
+            fig_daily = px.bar(
+                hourly_counts,
+                x='jam_label',
+                y='jumlah',
+                title=f"Traffic Refueling pada {current_str}",
+                text_auto=True,
+                labels={'jam_label': 'Jam Operasional', 'jumlah': 'Jumlah Unit'}
+            )
+            
+            fig_daily.update_traces(
+                marker_color='#00e5ff', 
+                width=0.6 # Lebar batang agar terlihat "Gagah/Besar"
+            )
+            
+            fig_daily.update_layout(
+                height=400,
+                margin=dict(l=20, r=20, t=60, b=20),
+                template="plotly_dark",
+                plot_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(type='category'), # Pastikan sumbu X dianggap kategori agar urut
+                yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)')
+            )
+            st.plotly_chart(fig_daily, use_container_width=True)
+            
+        else:
+            # Jika tidak ada data di tanggal tersebut
+            st.info(f"💤 Tidak ada aktivitas refueling tercatat pada tanggal {current_str}.")
 
     # ==========================================
     # LANGKAH 7: TABEL DATA
