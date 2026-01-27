@@ -184,11 +184,11 @@ if not df.empty:
     st.write("") 
     c1, c2, c3, c4, c5 = st.columns(5)
     
-    c1.metric("Total Solar", f"{total_qty:,.0f} L")
+    c1.metric("Total Pemakaian Solar", f"{total_qty:,.0f} L")
     c2.metric("Total Pengisian", f"{total_trx} Kali")
-    c3.metric("Avg Pengisian", f"{avg_refills_per_day:.1f} Kali/Hari")
-    c4.metric("Avg L/Jam Unit", f"{avg_l_per_hr:.1f} Liter/Jam")
-    c5.metric("Update Terakhir", last_update_str)
+    c3.metric("Rata-Rata Pengisian", f"{avg_refills_per_day:.1f} Kali/Hari")
+    c4.metric("Fuel Consumption", f"{avg_l_per_hr:.1f} Liter/Jam")
+    c5.metric("Update Data Terakhir", last_update_str)
 
     st.write("---")
     
