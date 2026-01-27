@@ -192,33 +192,27 @@ if not df.empty:
     tab1, tab2 = st.tabs(["📊 RINGKASAN VISUAL", "📋 LOGSHEET KESELURUHAN"])
 
     # ==========================================
-    # LANGKAH 6: VISUALISASI GRAFIK
-    # ==========================================
+# LANGKAH 6: VISUALISASI GRAFIK
+# ==========================================
     with tab1: 
         # --- BARIS 1: GRAFIK ATAS ---
         row1_c1, row1_c2 = st.columns([1.5, 1])
 
         with row1_c1:
-            # Grafik Tren Detail
             df_trend = df_filtered.copy().sort_values('timestamp')
             fig_trend = px.area(
                 df_trend, x='timestamp', y='quantity', 
-                title="📈 Tren Konsumsi Solar (Detail per Waktu)",
+                title="📈 Tren Konsumsi Solar",
                 hover_data={'timestamp': '|%d %b %Y, %H:%M'}
             )
-            fig_trend.update_traces(
-                mode='lines+markers', line_color='#00e5ff', 
-                fillcolor='rgba(0, 229, 255, 0.2)', marker=dict(size=6)
-            )
+            fig_trend.update_traces(line_color='#00e5ff', fillcolor='rgba(0, 229, 255, 0.2)')
             fig_trend.update_layout(
                 height=350, margin=dict(l=10, r=10, t=80, b=10), 
-                template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
-                xaxis=dict(title="Waktu Pengisian", tickformat="%H:%M\n%d %b %Y", tickangle=0)
+                template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)'
             )
             st.plotly_chart(fig_trend, use_container_width=True)
 
         with row1_c2:
-            # Grafik Top 5 Terboros
             df_boros = df_perf_global.nlargest(5, 'l_hr').sort_values('l_hr', ascending=True)
             fig_boros = px.bar(
                 df_boros, x="l_hr", y="unit", orientation='h', 
@@ -227,14 +221,12 @@ if not df.empty:
             )
             fig_boros.update_layout(
                 height=350, margin=dict(l=10, r=10, t=80, b=10), 
-                template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
-                xaxis_title="Average Liter per Hour", yaxis_title="No Lambung Unit"
+                template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)'
             )
             st.plotly_chart(fig_boros, use_container_width=True)
 
-        # --- BARIS 2: SPEEDOMETER & DIGITAL CLOCK ---
+        # --- BARIS 2: SPEEDOMETER & JAM DIGITAL ---
         st.write("---")
-        
         col_gauge, col_clock = st.columns([2, 1])
 
         with col_gauge:
@@ -254,17 +246,16 @@ if not df.empty:
             st.plotly_chart(fig_gauge, use_container_width=True)
 
         with col_clock:
-            # HTML JAM DIGITAL (NO IMAGE, PURE CSS)
-            # Bagian ini aman dari error "Content Not Available"
+            # --- PASTIKAN HTML DI BAWAH INI RATA KIRI (JANGAN ADA SPASI DI DEPANNYA) ---
             html_clock = """
 <div class="clock-card">
-<p style="color: #888; font-size: 14px; margin-bottom: 5px; letter-spacing: 1px;">DURASI REFUELING / UNIT</p>
-    
-<div class="digital-font">
-00:08:00
+<p style="color: #888; font-size: 14px; margin-bottom: 5px;">TARGET DURASI / UNIT</p>
+
+<div class="digital-font" style="font-size: 40px;">
+08:00 <span style="font-size: 20px; color: #00e5ff;">MENIT</span>
 </div>
 
-<p style="color: #00e5ff; font-size: 14px; margin-top: 10px; font-weight: bold;">HASIL OBSERVASI LAPANGAN</p>
+<p style="color: #00e5ff; font-size: 14px; margin-top: 10px; font-weight: bold;">DEXTER SOP COMPLIANCE</p>
 </div>
 """
             st.markdown(html_clock, unsafe_allow_html=True)
