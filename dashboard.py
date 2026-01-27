@@ -317,7 +317,7 @@ if not df.empty:
         
         # --- KOLOM 1: DAFTAR UNIT PELANGGAR (FITUR BARU) ---
         with col_list:
-            st.markdown('<p style="font-size: 18px; color: #ff4b4b; font-weight: bold; text-align: center; margin-bottom: 10px;">📋 DAFTAR "EARLY REFILL"</p>', unsafe_allow_html=True)
+            st.markdown('<p style="font-size: 18px; color: #ff4b4b; font-weight: bold; text-align: center; margin-bottom: 10px;">📋 DAFTAR UNIT REFUELING DIBAWAH 160L</p>', unsafe_allow_html=True)
             
             if not df_early_refill.empty:
                 # Rapikan tabel untuk tampilan
