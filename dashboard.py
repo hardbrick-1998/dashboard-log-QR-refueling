@@ -396,7 +396,7 @@ if not df.empty:
             st.write(""); st.write("") 
             html_clock = """
 <div class="clock-card" style="margin-top: 10px; padding: 15px;">
-<p style="color: #888; font-size: 12px; margin-bottom: 5px;"> TARGET DURASI</p>
+<p style="color: #888; font-size: 12px; margin-bottom: 5px;"> DURASI REFUELING</p>
 <div class="digital-font" style="font-size: 30px;">
 08:00
 </div>
@@ -406,7 +406,7 @@ if not df.empty:
             st.markdown(html_clock, unsafe_allow_html=True)
             st.markdown("""
             <div style="text-align: center; color: #aaa; font-size: 11px; margin-top: 10px;">
-            <i>*SOP Waktu: Masuk s/d Keluar Bays.</i>
+            <i>*Durasi refueling diambil dari hasil observasi ketika unit masuk bays s/d keluar bays.</i>
             </div>
             """, unsafe_allow_html=True)
 
