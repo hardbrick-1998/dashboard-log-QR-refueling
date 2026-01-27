@@ -398,7 +398,7 @@ if not df.empty:
 <div class="clock-card" style="margin-top: 10px; padding: 15px;">
 <p style="color: #888; font-size: 12px; margin-bottom: 5px;"> DURASI REFUELING</p>
 <div class="digital-font" style="font-size: 30px;">
-08:00
+08:00s
 </div>
 <p style="font-size: 14px; color: #00e5ff;">MENIT / UNIT</p>
 </div>
