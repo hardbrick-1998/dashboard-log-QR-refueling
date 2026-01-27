@@ -157,7 +157,7 @@ df = load_data()
 # ==========================================
 if not df.empty:
     # 1. Judul & Header (Tetap)
-    st.markdown('<p class="main-title">DASHBOARD REFUELING PITSTOP 39</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-title">DASHBOARD REFUELING PITSTOP KM 39</p>', unsafe_allow_html=True)
 
     # 2. Filter & Refresh (Tetap)
     col_filter, col_btn = st.columns([4, 1]) 
