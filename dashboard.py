@@ -196,7 +196,7 @@ if not df.empty:
     tab1, tab2 = st.tabs(["📊 RINGKASAN VISUAL", "📋 LOGSHEET KESELURUHAN"])
 
 # ==========================================
-# REVISI LANGKAH 6: VISUALISASI GRAFIK (FIX TITLE SPEEDOMETER)
+# REVISI LANGKAH 6: VISUALISASI CLEAN (NO SPEEDOMETER)
 # ==========================================
     with tab1: 
         # --- BARIS 1: GRAFIK TREN & TOP 5 (POSISI TETAP) ---
@@ -206,7 +206,7 @@ if not df.empty:
             df_trend = df_filtered.copy().sort_values('timestamp')
             fig_trend = px.area(
                 df_trend, x='timestamp', y='quantity', 
-                title="📈 TREN KONSUMSI SOLAR",
+                title="📈 TREN KONSUMSI SOLAR", 
                 hover_data={'timestamp': '|%d %b %Y, %H:%M'}
             )
             fig_trend.update_traces(line_color='#00e5ff', fillcolor='rgba(0, 229, 255, 0.2)')
@@ -214,8 +214,8 @@ if not df.empty:
                 height=400, margin=dict(l=10, r=10, t=80, b=10), 
                 template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
                 title_font_size=24,
-                xaxis=dict(title_font=dict(size=18), tickfont=dict(size=14)),
-                yaxis=dict(title_font=dict(size=18), tickfont=dict(size=14))
+                xaxis=dict(title="Waktu Pengisian", title_font=dict(size=18), tickfont=dict(size=14)),
+                yaxis=dict(title="Volume (Liter)", title_font=dict(size=18), tickfont=dict(size=14))
             )
             st.plotly_chart(fig_trend, use_container_width=True)
 
@@ -230,115 +230,108 @@ if not df.empty:
                 height=400, margin=dict(l=10, r=10, t=80, b=10), 
                 template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
                 title_font_size=24,
-                xaxis=dict(title_font=dict(size=18), tickfont=dict(size=14)),
-                yaxis=dict(title_font=dict(size=18), tickfont=dict(size=14))
+                xaxis=dict(title="Liter/Jam", title_font=dict(size=18), tickfont=dict(size=14)),
+                yaxis=dict(title="Unit", title_font=dict(size=18), tickfont=dict(size=14))
             )
             st.plotly_chart(fig_boros, use_container_width=True)
 
-        # --- BARIS 2: GRAFIK TRAFFIC HARIAN ---
+        # --- BARIS 2: TRAFFIC HARIAN (KIRI) & JAM DIGITAL (KANAN) ---
         st.write("---")
         
-        # 1. SETUP SESSION STATE
-        if 'chart_date' not in st.session_state:
-            st.session_state.chart_date = df['timestamp'].max().date()
-
-        # 2. NAVIGASI TANGGAL
-        c_prev, c_date, c_next = st.columns([1, 4, 1])
+        # Bagi layar: Kiri (Grafik) 3 bagian, Kanan (Jam) 1 bagian
+        col_traffic, col_clock = st.columns([3, 1])
         
-        with c_prev:
-            if st.button("⬅️ Hari Sebelumnya", use_container_width=True):
-                st.session_state.chart_date -= pd.Timedelta(days=1)
-                st.rerun()
+        # --- KOLOM KIRI: GRAFIK & NAVIGASI ---
+        with col_traffic:
+            # 1. SETUP SESSION STATE
+            if 'chart_date' not in st.session_state:
+                st.session_state.chart_date = df['timestamp'].max().date()
 
-        with c_next:
-            if st.button("Hari Setelahnya ➡️", use_container_width=True):
-                st.session_state.chart_date += pd.Timedelta(days=1)
-                st.rerun()
-        
-        with c_date:
-            # KAMUS INDONESIA
-            hari_dict = {
-                'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu', 
-                'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
-            }
-            bulan_dict = {
-                'January': 'Januari', 'February': 'Februari', 'March': 'Maret', 
-                'April': 'April', 'May': 'Mei', 'June': 'Juni', 
-                'July': 'Juli', 'August': 'Agustus', 'September': 'September', 
-                'October': 'Oktober', 'November': 'November', 'December': 'Desember'
-            }
+            # 2. NAVIGASI TANGGAL
+            c_prev, c_date, c_next = st.columns([1, 4, 1])
             
-            eng_day = st.session_state.chart_date.strftime("%A")
-            eng_month = st.session_state.chart_date.strftime("%B")
-            tgl_angka = st.session_state.chart_date.day
-            tahun = st.session_state.chart_date.year
+            with c_prev:
+                if st.button("⬅️ Sebelumnya", use_container_width=True):
+                    st.session_state.chart_date -= pd.Timedelta(days=1)
+                    st.rerun()
+
+            with c_next:
+                if st.button("Berikutnya ➡️", use_container_width=True):
+                    st.session_state.chart_date += pd.Timedelta(days=1)
+                    st.rerun()
             
-            indo_str = f"{hari_dict.get(eng_day, eng_day)}, {tgl_angka} {bulan_dict.get(eng_month, eng_month)} {tahun}"
-            
-            st.markdown(f"<h3 style='text-align: center; color: #00e5ff; margin: 0;'>{indo_str}</h3>", unsafe_allow_html=True)
+            with c_date:
+                # KAMUS INDONESIA
+                hari_dict = {
+                    'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu', 
+                    'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
+                }
+                bulan_dict = {
+                    'January': 'Januari', 'February': 'Februari', 'March': 'Maret', 
+                    'April': 'April', 'May': 'Mei', 'June': 'Juni', 
+                    'July': 'Juli', 'August': 'Agustus', 'September': 'September', 
+                    'October': 'Oktober', 'November': 'November', 'December': 'Desember'
+                }
+                
+                eng_day = st.session_state.chart_date.strftime("%A")
+                eng_month = st.session_state.chart_date.strftime("%B")
+                tgl_angka = st.session_state.chart_date.day
+                tahun = st.session_state.chart_date.year
+                
+                indo_str = f"{hari_dict.get(eng_day, eng_day)}, {tgl_angka} {bulan_dict.get(eng_month, eng_month)} {tahun}"
+                
+                st.markdown(f"<h3 style='text-align: center; color: #00e5ff; margin: 0; font-size: 24px;'>{indo_str}</h3>", unsafe_allow_html=True)
 
-        # 3. FILTER DATA HARIAN
-        df_daily = df[df['timestamp'].dt.date == st.session_state.chart_date].copy()
+            # 3. FILTER & RENDER GRAFIK
+            df_daily = df[df['timestamp'].dt.date == st.session_state.chart_date].copy()
 
-        if not df_daily.empty:
-            df_daily['jam'] = df_daily['timestamp'].dt.hour
-            hourly_counts = df_daily.groupby('jam').size().reset_index(name='jumlah')
-            hourly_counts = hourly_counts.sort_values('jam')
-            hourly_counts['jam_label'] = hourly_counts['jam'].apply(lambda x: f"{x:02d}:00")
+            if not df_daily.empty:
+                df_daily['jam'] = df_daily['timestamp'].dt.hour
+                hourly_counts = df_daily.groupby('jam').size().reset_index(name='jumlah')
+                hourly_counts = hourly_counts.sort_values('jam')
+                hourly_counts['jam_label'] = hourly_counts['jam'].apply(lambda x: f"{x:02d}:00")
 
-            fig_daily = px.bar(
-                hourly_counts, x='jam_label', y='jumlah',
-                title=f"📊 KEPADATAN ANTREAN ({indo_str})",
-                text_auto=True,
-                labels={'jam_label': 'Jam Operasional', 'jumlah': 'Unit'}
-            )
-            fig_daily.update_traces(marker_color='#00e5ff', width=0.6)
-            fig_daily.update_layout(
-                height=400, margin=dict(l=20, r=20, t=60, b=20),
-                template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
-                title_font_size=24,
-                xaxis=dict(type='category', title_font=dict(size=18), tickfont=dict(size=14)), 
-                yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title_font=dict(size=18), tickfont=dict(size=14))
-            )
-            st.plotly_chart(fig_daily, use_container_width=True)
-        else:
-            st.info(f"💤 Tidak ada aktivitas refueling tercatat pada {indo_str}.")
+                fig_daily = px.bar(
+                    hourly_counts, x='jam_label', y='jumlah',
+                    title=f"📊 KEPADATAN ANTREAN ({indo_str})",
+                    text_auto=True,
+                    labels={'jam_label': 'Jam', 'jumlah': 'Unit'}
+                )
+                fig_daily.update_traces(marker_color='#00e5ff', width=0.6)
+                fig_daily.update_layout(
+                    height=400, margin=dict(l=20, r=20, t=60, b=20),
+                    template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
+                    title_font_size=24,
+                    xaxis=dict(type='category', title_font=dict(size=18), tickfont=dict(size=14)), 
+                    yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title_font=dict(size=18), tickfont=dict(size=14))
+                )
+                st.plotly_chart(fig_daily, use_container_width=True)
+            else:
+                st.info(f"💤 Tidak ada aktivitas refueling tercatat pada {indo_str}.")
 
-        # --- BARIS 3: SPEEDOMETER & JAM DIGITAL ---
-        st.write("---")
-        col_gauge, col_clock = st.columns([2, 1])
-
-        with col_gauge:
-            fig_gauge = go.Figure(go.Indicator(
-                mode = "gauge+number", value = achievement_rate,
-                gauge = {
-                    'axis': {'range': [80, 100], 'tickcolor': "#00e5ff"},
-                    'bar': {'color': "#00e5ff"}, 'bgcolor': "#1b263b",
-                    'threshold': {'line': {'color': "red", 'width': 4}, 'value': 99.9}
-                },
-                title = {'text': "Pencapaian Efisiensi (%)", 'font': {'color': "#00e5ff", 'size': 20}}
-            ))
-            # --- FIX DISINI: Margin Top (t) diperbesar jadi 100 ---
-            fig_gauge.update_layout(
-                height=350, 
-                margin=dict(l=25, r=25, t=100, b=25), # <--- REVISI UTAMA: t=100 (Biar judul gak kepotong)
-                paper_bgcolor='rgba(0,0,0,0)', 
-                font={'color': "#00e5ff"} 
-            )
-            st.plotly_chart(fig_gauge, use_container_width=True)
-
+        # --- KOLOM KANAN: JAM DIGITAL (DURASI) ---
         with col_clock:
-            # HTML JAM DIGITAL (TETAP RATA KIRI)
+            st.write("") # Spacer agar turun sedikit sejajar dengan grafik
+            st.write("") 
+            
+            # HTML JAM DIGITAL
             html_clock = """
-<div class="clock-card">
+<div class="clock-card" style="margin-top: 20px;">
 <p style="color: #888; font-size: 14px; margin-bottom: 5px;"> DURASI REFUELING / UNIT</p>
-<div class="digital-font" style="font-size: 40px;">
-08:00 <span style="font-size: 20px; color: #00e5ff;">MENIT</span>
+<div class="digital-font" style="font-size: 38px;">
+08:00 <span style="font-size: 18px; color: #00e5ff;">MENIT</span>
 </div>
-<p style="color: #00e5ff; font-size: 14px; margin-top: 10px; font-weight: bold;">HASIL OBSERVASI LAPANGAN</p>
+<p style="color: #00e5ff; font-size: 13px; margin-top: 10px; font-weight: bold;">HASIL OBSERVASI LAPANGAN</p>
 </div>
 """
             st.markdown(html_clock, unsafe_allow_html=True)
+            
+            # Bisa tambahkan info tambahan teks kecil di bawah jam jika mau
+            st.markdown("""
+            <div style="text-align: center; color: #aaa; font-size: 12px; margin-top: 10px;">
+            <i>*Durasi refueling dihitung dari unit masuk bays hingga keluar dari bays.</i>
+            </div>
+            """, unsafe_allow_html=True)
 
     # ==========================================
     # LANGKAH 7: TABEL DATA
