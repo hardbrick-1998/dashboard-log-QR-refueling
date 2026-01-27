@@ -241,12 +241,12 @@ if not df.empty:
     tab1, tab2 = st.tabs(["📊 RINGKASAN VISUAL", "📋 LOGSHEET KESELURUHAN"])
 
 # ==========================================
-# REVISI LANGKAH 6: VISUALISASI CLEAN + ANOMALI DETECTOR
+# REVISI LANGKAH 6: INTEGRASI DAFTAR ANOMALI (EARLY REFILL LIST)
 # ==========================================
     with tab1:
-        # --- 1. ALERT BOX: DETEKSI EARLY REFILL (<160L) ---
-        # Kita cek dulu apakah ada data anomali di filter saat ini
+        # --- 1. ALERT BOX (PERINGATAN ATAS) ---
         MIN_REFILL_TARGET = 160.0
+        # Filter data anomali dari data yang sedang aktif
         df_early_refill = df_filtered[df_filtered['quantity'] < MIN_REFILL_TARGET].copy()
 
         if not df_early_refill.empty:
@@ -254,18 +254,19 @@ if not df.empty:
             <div style="background-color: #441111; border: 2px solid #ff4b4b; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
                 <h3 style="color: #ff4b4b; margin: 0; font-size: 20px;">⚠️ PERINGATAN: DETEKSI PENGISIAN PREMATUR</h3>
                 <p style="color: #ffffff; font-size: 14px; margin-top: 5px;">
-                    Terdeteksi <b>{len(df_early_refill)} unit</b> melakukan pengisian di bawah {MIN_REFILL_TARGET} Liter (Potensi antrean tidak efektif).
+                    Terdeteksi <b>{len(df_early_refill)} kali</b> unit masuk pitstop dengan muatan solar di bawah {MIN_REFILL_TARGET} Liter. 
+                    Potensi antrean tidak efektif!
                 </p>
             </div>
             """, unsafe_allow_html=True)
 
-        # --- BARIS 1: GRAFIK TREN & TOP 5 ---
+        # --- BARIS 1: GRAFIK TREN & TOP 5 (TETAP) ---
         row1_c1, row1_c2 = st.columns([1.5, 1])
 
         with row1_c1:
             df_trend = df_filtered.copy().sort_values('timestamp')
             
-            # A. LAYER UTAMA (BIRU NEON) - Tren Normal
+            # Layer Biru (Normal)
             fig_trend = px.area(
                 df_trend, x='timestamp', y='quantity', 
                 title="📈 TREN KONSUMSI SOLAR", 
@@ -273,26 +274,16 @@ if not df.empty:
             )
             fig_trend.update_traces(line_color='#00e5ff', fillcolor='rgba(0, 229, 255, 0.2)')
             
-            # B. LAYER ANOMALI (MERAH X) - Early Refill
-            # Hanya ambil data yang quantity < 160
+            # Layer Merah (Anomali)
             anomali_points = df_trend[df_trend['quantity'] < MIN_REFILL_TARGET]
-            
             if not anomali_points.empty:
                 fig_trend.add_trace(go.Scatter(
-                    x=anomali_points['timestamp'],
-                    y=anomali_points['quantity'],
-                    mode='markers',       # Mode titik
-                    name='Early Refill',
-                    marker=dict(
-                        color='#ff4b4b',  # Merah
-                        size=10,          # Ukuran titik
-                        symbol='x',       # Simbol Silang
-                        line=dict(width=2, color='white') # Outline putih
-                    ),
+                    x=anomali_points['timestamp'], y=anomali_points['quantity'],
+                    mode='markers', name='Early Refill',
+                    marker=dict(color='#ff4b4b', size=10, symbol='x', line=dict(width=2, color='white')),
                     hovertemplate='<b>EARLY REFILL!</b><br>Vol: %{y} L<br>Waktu: %{x}<extra></extra>'
                 ))
 
-            # Styling Grafik Tren
             fig_trend.update_layout(
                 height=400, margin=dict(l=10, r=10, t=80, b=10), 
                 template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
@@ -304,7 +295,6 @@ if not df.empty:
             st.plotly_chart(fig_trend, use_container_width=True)
 
         with row1_c2:
-            # Grafik Top 5 Terboros
             df_boros = df_perf_global.nlargest(5, 'l_hr').sort_values('l_hr', ascending=True)
             fig_boros = px.bar(
                 df_boros, x="l_hr", y="unit", orientation='h', 
@@ -320,12 +310,38 @@ if not df.empty:
             )
             st.plotly_chart(fig_boros, use_container_width=True)
 
-        # --- BARIS 2: TRAFFIC HARIAN (KIRI) & JAM DIGITAL (KANAN) ---
+        # --- BARIS 2: TIGA KOLOM (LIST ANOMALI | TRAFFIC | JAM) ---
         st.write("---")
-        col_traffic, col_clock = st.columns([3, 1])
+        # Layout: Kiri (List) - Tengah (Chart) - Kanan (Jam)
+        col_list, col_chart, col_clock = st.columns([1.5, 2.5, 1])
         
-        # --- KOLOM KIRI: GRAFIK & NAVIGASI ---
-        with col_traffic:
+        # --- KOLOM 1: DAFTAR UNIT PELANGGAR (FITUR BARU) ---
+        with col_list:
+            st.markdown('<p style="font-size: 18px; color: #ff4b4b; font-weight: bold; text-align: center; margin-bottom: 10px;">📋 DAFTAR "EARLY REFILL"</p>', unsafe_allow_html=True)
+            
+            if not df_early_refill.empty:
+                # Rapikan tabel untuk tampilan
+                df_show = df_early_refill[['timestamp', 'unit', 'quantity']].copy()
+                df_show = df_show.sort_values('timestamp', ascending=False) # Yang terbaru paling atas
+                
+                # Format Waktu agar enak dibaca (Jam:Menit)
+                df_show['Waktu'] = df_show['timestamp'].dt.strftime('%d %b, %H:%M')
+                
+                # Rename kolom
+                df_show = df_show.rename(columns={'unit': 'No Unit', 'quantity': 'Isi (L)'})
+                
+                # Tampilkan tabel tanpa index
+                st.dataframe(
+                    df_show[['Waktu', 'No Unit', 'Isi (L)']], 
+                    use_container_width=True, 
+                    hide_index=True,
+                    height=350 # Tinggi disamakan dengan grafik sebelahnya
+                )
+            else:
+                st.success("✅ Tidak ada unit yang melanggar batas minimum pengisian.")
+
+        # --- KOLOM 2: GRAFIK TRAFFIC (TENGAH) ---
+        with col_chart:
             # 1. SETUP SESSION STATE
             if 'chart_date' not in st.session_state:
                 st.session_state.chart_date = df['timestamp'].max().date()
@@ -333,15 +349,12 @@ if not df.empty:
             # 2. NAVIGASI TANGGAL
             c_prev, c_date, c_next = st.columns([1, 4, 1])
             with c_prev:
-                if st.button("⬅️ Sebelumnya", use_container_width=True):
-                    st.session_state.chart_date -= pd.Timedelta(days=1)
-                    st.rerun()
+                if st.button("⬅️ Prev", use_container_width=True):
+                    st.session_state.chart_date -= pd.Timedelta(days=1); st.rerun()
             with c_next:
-                if st.button("Berikutnya ➡️", use_container_width=True):
-                    st.session_state.chart_date += pd.Timedelta(days=1)
-                    st.rerun()
+                if st.button("Next ➡️", use_container_width=True):
+                    st.session_state.chart_date += pd.Timedelta(days=1); st.rerun()
             with c_date:
-                # KAMUS INDONESIA
                 hari_dict = {'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu', 'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'}
                 bulan_dict = {'January': 'Januari', 'February': 'Februari', 'March': 'Maret', 'April': 'April', 'May': 'Mei', 'June': 'Juni', 'July': 'Juli', 'August': 'Agustus', 'September': 'September', 'October': 'Oktober', 'November': 'November', 'December': 'Desember'}
                 
@@ -351,11 +364,10 @@ if not df.empty:
                 tahun = st.session_state.chart_date.year
                 indo_str = f"{hari_dict.get(eng_day, eng_day)}, {tgl_angka} {bulan_dict.get(eng_month, eng_month)} {tahun}"
                 
-                st.markdown(f"<h3 style='text-align: center; color: #00e5ff; margin: 0; font-size: 24px;'>{indo_str}</h3>", unsafe_allow_html=True)
+                st.markdown(f"<h3 style='text-align: center; color: #00e5ff; margin: 0; font-size: 20px;'>{indo_str}</h3>", unsafe_allow_html=True)
 
-            # 3. FILTER & RENDER GRAFIK
+            # 3. RENDER GRAFIK
             df_daily = df[df['timestamp'].dt.date == st.session_state.chart_date].copy()
-
             if not df_daily.empty:
                 df_daily['jam'] = df_daily['timestamp'].dt.hour
                 hourly_counts = df_daily.groupby('jam').size().reset_index(name='jumlah')
@@ -364,43 +376,37 @@ if not df.empty:
 
                 fig_daily = px.bar(
                     hourly_counts, x='jam_label', y='jumlah',
-                    title=f"📊 KEPADATAN ANTREAN ({indo_str})",
-                    text_auto=True,
-                    labels={'jam_label': 'Jam', 'jumlah': 'Unit'}
+                    title=f"📊 TRAFFIC ANTREAN",
+                    text_auto=True, labels={'jam_label': 'Jam', 'jumlah': 'Unit'}
                 )
                 fig_daily.update_traces(marker_color='#00e5ff', width=0.6)
                 fig_daily.update_layout(
-                    height=400, margin=dict(l=20, r=20, t=60, b=20),
+                    height=350, margin=dict(l=20, r=20, t=50, b=20),
                     template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
-                    title_font_size=24,
-                    xaxis=dict(type='category', title_font=dict(size=18), tickfont=dict(size=14)), 
-                    yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title_font=dict(size=18), tickfont=dict(size=14))
+                    title_font_size=18,
+                    xaxis=dict(type='category', title_font=dict(size=14), tickfont=dict(size=12)), 
+                    yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title_font=dict(size=14), tickfont=dict(size=12))
                 )
                 st.plotly_chart(fig_daily, use_container_width=True)
             else:
-                st.info(f"💤 Tidak ada aktivitas refueling tercatat pada {indo_str}.")
+                st.info(f"💤 Tidak ada data pada {indo_str}.")
 
-        # --- KOLOM KANAN: JAM DIGITAL (DURASI) ---
+        # --- KOLOM 3: JAM DIGITAL (KANAN) ---
         with col_clock:
-            st.write("") # Spacer
-            st.write("") 
-            
-            # HTML JAM DIGITAL
+            st.write(""); st.write("") 
             html_clock = """
-<div class="clock-card" style="margin-top: 20px;">
-<p style="color: #888; font-size: 14px; margin-bottom: 5px;"> DURASI REFUELING / UNIT</p>
-<div class="digital-font" style="font-size: 38px;">
-08:00 <span style="font-size: 18px; color: #00e5ff;">MENIT</span>
+<div class="clock-card" style="margin-top: 10px; padding: 15px;">
+<p style="color: #888; font-size: 12px; margin-bottom: 5px;"> TARGET DURASI</p>
+<div class="digital-font" style="font-size: 30px;">
+08:00
 </div>
-<p style="color: #00e5ff; font-size: 13px; margin-top: 10px; font-weight: bold;">HASIL OBSERVASI LAPANGAN</p>
+<p style="font-size: 14px; color: #00e5ff;">MENIT / UNIT</p>
 </div>
 """
             st.markdown(html_clock, unsafe_allow_html=True)
-            
-            # INFO TAMBAHAN (REVISI TEKS MAS FAIZ)
             st.markdown("""
-            <div style="text-align: center; color: #aaa; font-size: 12px; margin-top: 10px;">
-            <i>*Durasi refueling dihitung dari unit masuk bays hingga keluar dari bays.</i>
+            <div style="text-align: center; color: #aaa; font-size: 11px; margin-top: 10px;">
+            <i>*SOP Waktu: Masuk s/d Keluar Bays.</i>
             </div>
             """, unsafe_allow_html=True)
 
