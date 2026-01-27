@@ -254,7 +254,7 @@ if not df.empty:
             <div style="background-color: #441111; border: 2px solid #ff4b4b; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
                 <h3 style="color: #ff4b4b; margin: 0; font-size: 20px;">⚠️ PERINGATAN: TERDETEKSI PENGISIAN ANOMALI</h3>
                 <p style="color: #ffffff; font-size: 14px; margin-top: 5px;">
-                    Terdeteksi <b>{len(df_early_refill)} kali</b> unit masuk pitstop dengan kondisi tangki fuel di bawah {MIN_REFILL_TARGET} Liter. 
+                    Terdeteksi <b>{len(df_early_refill)} kali</b> unit masuk pitstop dengan kondisi tangki fuel masih diatas {MIN_REFILL_TARGET} Liter. 
                     menyebabkan antrean tidak efektif!
                 </p>
             </div>
