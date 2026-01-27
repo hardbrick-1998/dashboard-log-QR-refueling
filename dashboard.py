@@ -10,19 +10,23 @@ from datetime import datetime
 st.set_page_config(page_title="MACO Refueling 39", layout="wide", initial_sidebar_state="collapsed")
 
 # ==========================================
-# LANGKAH 2: CUSTOM CSS (DEXTER EDITION)
+# REVISI LANGKAH 2: CUSTOM CSS (VISUAL UPGRADE)
 # ==========================================
 st.markdown("""
     <style>
     /* 1. Background Utama */
     .main { background-color: #0d1b2a; color: #00e5ff; }
     
-    /* 2. Judul Dashboard dengan Neon Effect */
+    /* 2. Judul Dashboard (UKURAN JUMBO & NEON KUAT) */
     .main-title {
-        text-align: center; color: #ffffff; font-size: 38px;
-        font-weight: bold; text-shadow: 0 0 15px #00e5ff;
-        margin-bottom: 25px; 
-        margin-top: -10px;
+        text-align: center; 
+        color: #ffffff; 
+        font-size: 52px; /* <-- Diperbesar dari 38px */
+        font-weight: 800; /* Lebih Tebal */
+        text-shadow: 0 0 10px #00e5ff, 0 0 20px #00e5ff, 0 0 40px #00e5ff; /* Glow Bertingkat */
+        margin-bottom: 30px; 
+        margin-top: -20px;
+        letter-spacing: 2px; /* Jarak antar huruf biar elegan */
     }
 
     /* 3. Styling Metric Cards */
@@ -183,7 +187,7 @@ if not df.empty:
     c1.metric("Total Solar", f"{total_qty:,.0f} L")
     c2.metric("Total Pengisian", f"{total_trx} Kali")
     c3.metric("Avg Pengisian", f"{avg_refills_per_day:.1f} Kali/Hari")
-    c4.metric("Avg L/Jam Unit", f"{avg_l_per_hr:.1f} L/Hr")
+    c4.metric("Avg L/Jam Unit", f"{avg_l_per_hr:.1f} Liter/Jam")
     c5.metric("Update Terakhir", last_update_str)
 
     st.write("---")
@@ -192,7 +196,7 @@ if not df.empty:
     tab1, tab2 = st.tabs(["📊 RINGKASAN VISUAL", "📋 LOGSHEET KESELURUHAN"])
 
 # ==========================================
-# LANGKAH 6: VISUALISASI GRAFIK (LAYOUT BARU)
+# REVISI LANGKAH 6: VISUALISASI GRAFIK (FIX TITLE SPEEDOMETER)
 # ==========================================
     with tab1: 
         # --- BARIS 1: GRAFIK TREN & TOP 5 (POSISI TETAP) ---
@@ -202,13 +206,16 @@ if not df.empty:
             df_trend = df_filtered.copy().sort_values('timestamp')
             fig_trend = px.area(
                 df_trend, x='timestamp', y='quantity', 
-                title="📈 Tren Konsumsi Solar",
+                title="📈 TREN KONSUMSI SOLAR",
                 hover_data={'timestamp': '|%d %b %Y, %H:%M'}
             )
             fig_trend.update_traces(line_color='#00e5ff', fillcolor='rgba(0, 229, 255, 0.2)')
             fig_trend.update_layout(
-                height=350, margin=dict(l=10, r=10, t=80, b=10), 
-                template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)'
+                height=400, margin=dict(l=10, r=10, t=80, b=10), 
+                template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
+                title_font_size=24,
+                xaxis=dict(title_font=dict(size=18), tickfont=dict(size=14)),
+                yaxis=dict(title_font=dict(size=18), tickfont=dict(size=14))
             )
             st.plotly_chart(fig_trend, use_container_width=True)
 
@@ -216,19 +223,22 @@ if not df.empty:
             df_boros = df_perf_global.nlargest(5, 'l_hr').sort_values('l_hr', ascending=True)
             fig_boros = px.bar(
                 df_boros, x="l_hr", y="unit", orientation='h', 
-                title="🔥 Top 5 Unit Terboros (Avg L/Hr)", 
+                title="🔥 TOP 5 UNIT TERBOROS", 
                 color_discrete_sequence=['#ff4b4b'], text_auto='.1f'
             )
             fig_boros.update_layout(
-                height=350, margin=dict(l=10, r=10, t=80, b=10), 
-                template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)'
+                height=400, margin=dict(l=10, r=10, t=80, b=10), 
+                template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
+                title_font_size=24,
+                xaxis=dict(title_font=dict(size=18), tickfont=dict(size=14)),
+                yaxis=dict(title_font=dict(size=18), tickfont=dict(size=14))
             )
             st.plotly_chart(fig_boros, use_container_width=True)
 
-        # --- BARIS 2: GRAFIK TRAFFIC HARIAN (PINDAH KE SINI) ---
+        # --- BARIS 2: GRAFIK TRAFFIC HARIAN ---
         st.write("---")
         
-        # 1. SETUP SESSION STATE & TANGGAL DEFAULT
+        # 1. SETUP SESSION STATE
         if 'chart_date' not in st.session_state:
             st.session_state.chart_date = df['timestamp'].max().date()
 
@@ -246,8 +256,7 @@ if not df.empty:
                 st.rerun()
         
         with c_date:
-            # --- KAMUS PENERJEMAH TANGGAL INDONESIA ---
-            # Kita terjemahkan manual agar stabil di semua komputer
+            # KAMUS INDONESIA
             hari_dict = {
                 'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu', 
                 'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
@@ -259,14 +268,12 @@ if not df.empty:
                 'October': 'Oktober', 'November': 'November', 'December': 'Desember'
             }
             
-            # Ambil nama Inggris
             eng_day = st.session_state.chart_date.strftime("%A")
             eng_month = st.session_state.chart_date.strftime("%B")
             tgl_angka = st.session_state.chart_date.day
             tahun = st.session_state.chart_date.year
             
-            # Terjemahkan
-            indo_str = f"{hari_dict[eng_day]}, {tgl_angka} {bulan_dict[eng_month]} {tahun}"
+            indo_str = f"{hari_dict.get(eng_day, eng_day)}, {tgl_angka} {bulan_dict.get(eng_month, eng_month)} {tahun}"
             
             st.markdown(f"<h3 style='text-align: center; color: #00e5ff; margin: 0;'>{indo_str}</h3>", unsafe_allow_html=True)
 
@@ -281,21 +288,23 @@ if not df.empty:
 
             fig_daily = px.bar(
                 hourly_counts, x='jam_label', y='jumlah',
-                title=f"📊 Analisa Kepadatan Antrean ({indo_str})",
+                title=f"📊 KEPADATAN ANTREAN ({indo_str})",
                 text_auto=True,
                 labels={'jam_label': 'Jam Operasional', 'jumlah': 'Unit'}
             )
             fig_daily.update_traces(marker_color='#00e5ff', width=0.6)
             fig_daily.update_layout(
-                height=350, margin=dict(l=20, r=20, t=60, b=20),
+                height=400, margin=dict(l=20, r=20, t=60, b=20),
                 template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
-                xaxis=dict(type='category'), yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)')
+                title_font_size=24,
+                xaxis=dict(type='category', title_font=dict(size=18), tickfont=dict(size=14)), 
+                yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title_font=dict(size=18), tickfont=dict(size=14))
             )
             st.plotly_chart(fig_daily, use_container_width=True)
         else:
             st.info(f"💤 Tidak ada aktivitas refueling tercatat pada {indo_str}.")
 
-        # --- BARIS 3: SPEEDOMETER & JAM DIGITAL (TURUN KE SINI) ---
+        # --- BARIS 3: SPEEDOMETER & JAM DIGITAL ---
         st.write("---")
         col_gauge, col_clock = st.columns([2, 1])
 
@@ -307,11 +316,14 @@ if not df.empty:
                     'bar': {'color': "#00e5ff"}, 'bgcolor': "#1b263b",
                     'threshold': {'line': {'color': "red", 'width': 4}, 'value': 99.9}
                 },
-                title = {'text': "Pencapaian Efisiensi (%)", 'font': {'color': "#00e5ff", 'size': 18}}
+                title = {'text': "Pencapaian Efisiensi (%)", 'font': {'color': "#00e5ff", 'size': 20}}
             ))
+            # --- FIX DISINI: Margin Top (t) diperbesar jadi 100 ---
             fig_gauge.update_layout(
-                height=300, margin=dict(l=20, r=20, t=50, b=20), 
-                paper_bgcolor='rgba(0,0,0,0)', font={'color': "#00e5ff"}
+                height=350, 
+                margin=dict(l=25, r=25, t=100, b=25), # <--- REVISI UTAMA: t=100 (Biar judul gak kepotong)
+                paper_bgcolor='rgba(0,0,0,0)', 
+                font={'color': "#00e5ff"} 
             )
             st.plotly_chart(fig_gauge, use_container_width=True)
 
@@ -319,11 +331,11 @@ if not df.empty:
             # HTML JAM DIGITAL (TETAP RATA KIRI)
             html_clock = """
 <div class="clock-card">
-<p style="color: #888; font-size: 14px; margin-bottom: 5px;">TARGET DURASI / UNIT</p>
+<p style="color: #888; font-size: 14px; margin-bottom: 5px;"> DURASI REFUELING / UNIT</p>
 <div class="digital-font" style="font-size: 40px;">
 08:00 <span style="font-size: 20px; color: #00e5ff;">MENIT</span>
 </div>
-<p style="color: #00e5ff; font-size: 14px; margin-top: 10px; font-weight: bold;">DEXTER SOP COMPLIANCE</p>
+<p style="color: #00e5ff; font-size: 14px; margin-top: 10px; font-weight: bold;">HASIL OBSERVASI LAPANGAN</p>
 </div>
 """
             st.markdown(html_clock, unsafe_allow_html=True)
