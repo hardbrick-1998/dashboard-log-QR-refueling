@@ -10,49 +10,67 @@ from datetime import datetime
 st.set_page_config(page_title="MACO Refueling 39", layout="wide", initial_sidebar_state="collapsed")
 
 # ==========================================
-# REVISI LANGKAH 2: CUSTOM CSS (METRIC SIZE FIX)
+# REVISI LANGKAH 2: CUSTOM CSS (ELECTRIC NEON & COMPACT METRIC)
 # ==========================================
 st.markdown("""
     <style>
     /* 1. Background Utama */
     .main { background-color: #0d1b2a; color: #00e5ff; }
     
-    /* 2. Judul Dashboard (TETAP BESAR) */
+    /* --- EFEK ANIMASI SETRUM (ELECTRIC FLICKER) --- */
+    @keyframes flicker {
+        0%, 18%, 22%, 25%, 53%, 57%, 100% {
+            text-shadow: 
+                0 0 10px #00e5ff, 
+                0 0 20px #00e5ff, 
+                0 0 40px #00e5ff, 
+                0 0 80px #00e5ff, 
+                0 0 100px #00e5ff;
+            opacity: 1;
+        }
+        20%, 24%, 55% {
+            text-shadow: none;
+            opacity: 0.4; /* Redup sebentar seolah korslet */
+        }
+    }
+
+    /* 2. Judul Dashboard (JUMBO & ANIMATED) */
     .main-title {
         text-align: center; 
         color: #ffffff; 
-        font-size: 52px; 
-        font-weight: 800; 
-        text-shadow: 0 0 10px #00e5ff, 0 0 20px #00e5ff, 0 0 40px #00e5ff;
+        font-size: 65px; /* <--- UKURAN RAKSASA */
+        font-weight: 900; /* Paling Tebal */
         margin-bottom: 30px; 
         margin-top: -20px;
-        letter-spacing: 2px;
+        letter-spacing: 4px;
+        font-family: sans-serif;
+        
+        /* Panggil Animasi Setrum di sini */
+        animation: flicker 2.5s infinite alternate; 
     }
 
-    /* 3. Styling Metric Cards (CONTAINER) */
+    /* 3. Styling Metric Cards (DIKECILKAN AGAR MUAT) */
     div[data-testid="stMetric"] {
         background-color: #1b263b; 
         border: 1px solid #00e5ff;
-        padding: 10px; /* Padding dikurangi biar hemat tempat */
+        padding: 10px; 
         border-radius: 10px; 
         box-shadow: 0 0 8px #00e5ff;
-        overflow: hidden; /* Mencegah teks keluar kotak */
+        overflow: hidden; 
     }
 
-    /* --- TAMBAHAN BARU: MENGECILKAN HURUF KARTU METRIK --- */
-    
-    /* A. Judul Kecil di atas Angka (Label) */
+    /* Label Judul Kartu (Kecil) */
     div[data-testid="stMetricLabel"] {
-        font-size: 14px !important; /* Diperkecil agar muat */
+        font-size: 14px !important; 
         color: #b0c4de;
-        white-space: nowrap; /* Mencegah judul turun baris */
+        white-space: nowrap; 
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    /* B. Angka Besar (Value) */
+    /* Angka Nilai Kartu (Pas) */
     div[data-testid="stMetricValue"] {
-        font-size: 26px !important; /* Diperkecil dari default 30px+ */
+        font-size: 26px !important; 
         color: #00e5ff;
         font-weight: bold;
     }
