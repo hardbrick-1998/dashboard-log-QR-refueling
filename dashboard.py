@@ -34,35 +34,51 @@ st.markdown("""
 # REVISI LANGKAH 3: KONEKSI DATA & PEMBERSIHAN
 # ==========================================
 
-# --- ALAMAT GUDANG DATA (WAJIB ADA) ---
+# --- ALAMAT GUDANG DATA ---
 SHEET_ID = "1NN_rGKQBZzhUIKnfY1aOs1gvCP2aFiVo6j1RFagtb4s"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
 @st.cache_data(ttl=60)
 def load_data():
     try:
-        # Sekarang CSV_URL di bawah ini sudah punya "definisi"
+        # 1. Tarik data mentah dari CSV
         df = pd.read_csv(CSV_URL) 
         
-        # 1. Bersihkan nama kolom
+        # 2. Bersihkan nama kolom (Lowercase & Buang Spasi)
         df.columns = df.columns.str.lower().str.strip()
         
-        # 2. Mapping Nama Kolom
+        # 3. Mapping Nama Kolom agar seragam
         rename_map = {
             'timestamp': 'timestamp', 'kode unit': 'unit', 
             'lokasi': 'location', 'quantity': 'quantity', 'hm': 'hm'
         }
         df.rename(columns=rename_map, inplace=True)
         
-        # 3. Hapus baris kosong
+        # 4. Hapus baris sampah yang benar-benar kosong
         df = df.dropna(subset=['unit', 'quantity'], how='all')
-        
-        # 4. Paksa format Tanggal dd/mm/yyyy hh:mm:ss
+
+        # 5. LOGIKA FLEKSIBEL TIMESTAMP (Solusi MM/DD vs DD/MM)
         if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'], dayfirst=True, errors='coerce')
+            # Simpan data asli dalam bentuk string untuk diproses
+            raw_ts = df['timestamp'].astype(str)
             
-        # 5. Standarisasi Tipe Data
+            # Tahap A: Coba format Day-First (Indo: 31/12/2025)
+            df['timestamp'] = pd.to_datetime(raw_ts, dayfirst=True, errors='coerce')
+            
+            # Tahap B: Cari yang masih gagal (NaT) dan coba format Month-First (US: 12/31/2025)
+            mask_failed = df['timestamp'].isna()
+            if mask_failed.any():
+                df.loc[mask_failed, 'timestamp'] = pd.to_datetime(
+                    raw_ts[mask_failed], dayfirst=False, errors='coerce'
+                )
+            
+            # Sortir data agar grafik tidak berantakan (Penting!)
+            df = df.sort_values('timestamp').reset_index(drop=True)
+
+        # 6. Standarisasi Tipe Data Numerik
         df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0)
+        if 'hm' in df.columns:
+            df['hm'] = pd.to_numeric(df['hm'], errors='coerce')
         if 'shift' in df.columns:
             df['shift'] = df['shift'].astype(str).str.upper().str.strip()
             
@@ -71,7 +87,7 @@ def load_data():
         st.error(f"Gagal memuat data: {e}")
         return pd.DataFrame()
 
-# Panggil fungsinya
+# Eksekusi penarikan data
 df = load_data()
 
 # ==========================================
@@ -89,8 +105,7 @@ if not df.empty:
         selected_unit = st.selectbox("🔍 Filter No Lambung Unit:", options=filter_options, index=0)
 
     with col_btn:
-        st.write(" ")
-        st.write(" ") 
+        st.write(" "); st.write(" ") 
         if st.button("🔄 Refresh Data", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
@@ -102,76 +117,86 @@ if not df.empty:
         st.warning("⚠️ Tidak ada data untuk unit yang dipilih.")
         st.stop()
 
-    # 4. FUNGSI ANALISA PERFORMA (L/HR) INDIVIDUAL
+    # 4. FUNGSI ANALISA PERFORMA (INDIVIDUAL PER UNIT) 
     def get_performance_df(data_source):
-        """Menghitung L/Hr untuk setiap unit dalam dataset yang diberikan"""
+        """Menghitung L/Hr dan Avg Pengisian Harian per Unit"""
         active_units = data_source['unit'].unique()
         performance_data = []
         
         for unit in active_units:
             u_data = data_source[data_source['unit'] == unit]
-            # Hitung durasi (Max - Min Timestamp)
-            duration = (u_data['timestamp'].max() - u_data['timestamp'].min()).total_seconds() / 3600
             
-            if duration > 0:
-                total_liter = u_data['quantity'].sum()
-                rate = total_liter / duration
-                performance_data.append({'unit': unit, 'l_hr': rate})
+            # A. Kalkulasi L/Hr
+            duration = (u_data['timestamp'].max() - u_data['timestamp'].min()).total_seconds() / 3600
+            l_hr = u_data['quantity'].sum() / duration if duration > 0 else 0
+            
+            # B. Kalkulasi Pengisian per Hari (Individual)
+            num_days_unit = u_data['timestamp'].dt.date.nunique()
+            refills_day = len(u_data) / num_days_unit if num_days_unit > 0 else 0
+            
+            performance_data.append({
+                'unit': unit, 
+                'l_hr': l_hr, 
+                'refills_day': refills_day
+            })
         
         return pd.DataFrame(performance_data)
 
-    # --- EKSEKUSI DATA PERFORMA ---
+    # --- EKSEKUSI KALKULASI ---
     
-    # A. Performa Global (Untuk Grafik Top 5 Terboros - Selalu ALL DATA)
+    # Performa Global (Untuk Grafik Top 5)
     df_perf_global = get_performance_df(df)
     
-    # B. Performa Terfilter (Untuk Kartu Metrik Avg L/Jam Unit)
+    # Performa Terfilter (Untuk Metric Cards)
     df_perf_filtered = get_performance_df(df_filtered)
-    
-    # Hitung nilai rata-rata untuk kartu metrik (Average of Averages)
+
+    # --- RATA-RATA DARI RATA-RATA (AVERAGE OF AVERAGES) ---
     if not df_perf_filtered.empty:
-        avg_l_per_hr = df_perf_filtered['l_hr'].mean()
+        # Kita ambil rata-rata dari kolom hasil perhitungan per unit
+        avg_l_per_hr = df_perf_filtered['l_hr'][df_perf_filtered['l_hr'] > 0].mean()
+        avg_refills_per_day = df_perf_filtered['refills_day'].mean()
     else:
         avg_l_per_hr = 0
+        avg_refills_per_day = 0
 
-    # 5. METRIK PENDUKUNG LAINNYA
+    # 5. METRIK PENDUKUNG
     total_qty = df_filtered['quantity'].sum()
     total_trx = len(df_filtered)
-    
-    # Ambil waktu terakhir
     last_update_raw = df_filtered['timestamp'].max()
     last_update_str = last_update_raw.strftime('%d %b, %H:%M') if pd.notnull(last_update_raw) else "-"
     
-    # Perhitungan Efisiensi (Dummy Target)
-    anomali_rate = 0.1017 
-    achievement_rate = (1 - anomali_rate) * 100
+    # Target Efisiensi
+    achievement_rate = (1 - 0.1017) * 100
     
-    
-
 # ==========================================
-# REVISI LANGKAH 5: METRIC CARDS & TAB SYSTEM
+# REVISI LANGKAH 5: METRIC CARDS (5 KOLOM)
 # ==========================================
-    # Beri sedikit ruang antara filter dan kartu
+    # Memberikan sedikit ruang napas di bawah filter
     st.write("") 
 
-    # Baris Kartu Ringkasan (Summary) 
-    c1, c2, c3, c4 = st.columns(4)
+    # Membuat 5 kolom untuk baris ringkasan (Summary)
+    # 
+    c1, c2, c3, c4, c5 = st.columns(5)
     
-    # Kartu 1: Total Volume
-    c1.metric("Total Solar", f"{total_qty:,.0f} L")
+    # Kartu 1: Total Volume Solar
+    c1.metric("Total Pemakaian Solar", f"{total_qty:,.0f} L")
     
-    # Kartu 2: TOTAL PENGISIAN (Perubahan Satuan ke 'Kali')
-    c2.metric("Total Pengisian", f"{total_trx} Kali") 
+    # Kartu 2: Total Pengisian (Kumulatif)
+    c2.metric("Total Transaksi Refueling", f"{total_trx} Kali")
     
-    # Kartu 3: Performa Unit
-    c3.metric("Avg L/Jam Unit", f"{avg_l_per_hr:.1f} L/Hr")
+    # --- KARTU BARU: RATA-RATA PENGISIAN PER HARI ---
+    # Menampilkan variabel 'avg_refills_per_day' yang dihitung di Langkah 4
+    c3.metric("Refueling Activity", f"{avg_refills_per_day:.1f} Kali/Hari")
     
-    # Kartu 4: Status Terakhir
-    c4.metric("Update Terakhir", last_update_str)
+    # Kartu 4: Performa Unit (Average of Averages)
+    c4.metric("Fuel Consumption", f"{avg_l_per_hr:.1f} L/Hr")
+    
+    # Kartu 5: Status Waktu Terakhir
+    c5.metric("Update Terakhir", last_update_str)
 
     st.write("---")
     
-    # Sistem Tab untuk memisahkan Visual dan Data
+    # Sistem Tab untuk navigasi Visual vs Tabel Data
     tab1, tab2 = st.tabs(["📊 RINGKASAN VISUAL", "📋 LOGSHEET KESELURUHAN"])
 
 # ==========================================
