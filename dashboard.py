@@ -10,29 +10,51 @@ from datetime import datetime
 st.set_page_config(page_title="MACO Refueling 39", layout="wide", initial_sidebar_state="collapsed")
 
 # ==========================================
-# REVISI LANGKAH 2: CUSTOM CSS (VISUAL UPGRADE)
+# REVISI LANGKAH 2: CUSTOM CSS (METRIC SIZE FIX)
 # ==========================================
 st.markdown("""
     <style>
     /* 1. Background Utama */
     .main { background-color: #0d1b2a; color: #00e5ff; }
     
-    /* 2. Judul Dashboard (UKURAN JUMBO & NEON KUAT) */
+    /* 2. Judul Dashboard (TETAP BESAR) */
     .main-title {
         text-align: center; 
         color: #ffffff; 
-        font-size: 52px; /* <-- Diperbesar dari 38px */
-        font-weight: 800; /* Lebih Tebal */
-        text-shadow: 0 0 10px #00e5ff, 0 0 20px #00e5ff, 0 0 40px #00e5ff; /* Glow Bertingkat */
+        font-size: 52px; 
+        font-weight: 800; 
+        text-shadow: 0 0 10px #00e5ff, 0 0 20px #00e5ff, 0 0 40px #00e5ff;
         margin-bottom: 30px; 
         margin-top: -20px;
-        letter-spacing: 2px; /* Jarak antar huruf biar elegan */
+        letter-spacing: 2px;
     }
 
-    /* 3. Styling Metric Cards */
+    /* 3. Styling Metric Cards (CONTAINER) */
     div[data-testid="stMetric"] {
-        background-color: #1b263b; border: 1px solid #00e5ff;
-        padding: 15px; border-radius: 10px; box-shadow: 0 0 8px #00e5ff;
+        background-color: #1b263b; 
+        border: 1px solid #00e5ff;
+        padding: 10px; /* Padding dikurangi biar hemat tempat */
+        border-radius: 10px; 
+        box-shadow: 0 0 8px #00e5ff;
+        overflow: hidden; /* Mencegah teks keluar kotak */
+    }
+
+    /* --- TAMBAHAN BARU: MENGECILKAN HURUF KARTU METRIK --- */
+    
+    /* A. Judul Kecil di atas Angka (Label) */
+    div[data-testid="stMetricLabel"] {
+        font-size: 14px !important; /* Diperkecil agar muat */
+        color: #b0c4de;
+        white-space: nowrap; /* Mencegah judul turun baris */
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* B. Angka Besar (Value) */
+    div[data-testid="stMetricValue"] {
+        font-size: 26px !important; /* Diperkecil dari default 30px+ */
+        color: #00e5ff;
+        font-weight: bold;
     }
 
     /* 4. Digital Clock Container */
@@ -50,7 +72,7 @@ st.markdown("""
         font-family: 'Courier New', Courier, monospace;
         font-size: 48px;
         font-weight: bold;
-        color: #39ff14; /* Hijau Neon Digital */
+        color: #39ff14; 
         text-shadow: 0 0 10px #39ff14;
         background-color: #0d0d0d;
         padding: 10px;
