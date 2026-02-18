@@ -10,7 +10,7 @@ from datetime import datetime
 st.set_page_config(page_title="MACO Refueling 39", layout="wide", initial_sidebar_state="collapsed")
 
 # ==========================================
-# REVISI LANGKAH 2: CUSTOM CSS (FORCE DARK & NEON)
+# LANGKAH 2: CUSTOM CSS (FORCE DARK & NEON)
 # ==========================================
 st.markdown("""
     <style>
