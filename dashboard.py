@@ -10,101 +10,82 @@ from datetime import datetime
 st.set_page_config(page_title="MACO Refueling 39", layout="wide", initial_sidebar_state="collapsed")
 
 # ==========================================
-# LANGKAH 2: CUSTOM CSS (FORCE DARK & NEON)
+# REVISI LANGKAH 2: CUSTOM CSS (CYBERPUNK EDITION)
 # ==========================================
 st.markdown("""
     <style>
-    /* --- 1. PAKSA BACKGROUND GELAP (GLOBAL) --- */
-    /* Ini akan menimpa settingan Light Mode browser user */
+    /* --- 1. GLOBAL SETTINGS --- */
     [data-testid="stAppViewContainer"] {
         background-color: #0d1b2a !important;
         color: #ffffff !important;
+        background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), 
+                          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 50px 50px;
     }
+    [data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
+    h1, h2, h3, h4, h5, h6, p, li, span, div { color: #ffffff; }
     
-    /* Header bagian atas (tempat tombol menu) juga digelapkan */
-    [data-testid="stHeader"] {
-        background-color: rgba(0,0,0,0) !important; /* Transparan */
+    /* --- 2. JUDUL DASHBOARD (BOX NEON) --- */
+    .cyberpunk-title-container {
+        background-color: rgba(13, 27, 42, 0.8);
+        border: 3px solid #00e5ff;
+        border-radius: 15px;
+        padding: 25px;
+        text-align: center;
+        margin-bottom: 30px; margin-top: -20px;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.6), inset 0 0 30px rgba(0, 229, 255, 0.3);
+        backdrop-filter: blur(5px);
     }
-
-    /* Warna teks default dipaksa putih semua */
-    h1, h2, h3, h4, h5, h6, p, li, span, div {
-        color: #ffffff;
-    }
-    
-    /* --- 2. JUDUL DASHBOARD (ANIMASI SETRUM) --- */
     @keyframes flicker {
         0%, 18%, 22%, 25%, 53%, 57%, 100% {
-            text-shadow: 
-                0 0 10px #00e5ff, 
-                0 0 20px #00e5ff, 
-                0 0 40px #00e5ff, 
-                0 0 80px #00e5ff, 
-                0 0 100px #00e5ff;
-            opacity: 1;
+            text-shadow: 0 0 10px #00e5ff, 0 0 20px #00e5ff, 0 0 40px #00e5ff; opacity: 1;
         }
-        20%, 24%, 55% {
-            text-shadow: none;
-            opacity: 0.4;
-        }
+        20%, 24%, 55% { text-shadow: none; opacity: 0.5; }
     }
-
     .main-title {
-        text-align: center; 
-        color: #ffffff; 
-        font-size: 65px; 
-        font-weight: 900; 
-        margin-bottom: 30px; 
-        margin-top: -20px;
-        letter-spacing: 4px;
-        font-family: sans-serif;
-        animation: flicker 2.5s infinite alternate; 
+        font-size: 55px; font-weight: 900; margin: 0; letter-spacing: 4px;
+        font-family: 'Verdana', sans-serif; text-transform: uppercase;
+        animation: flicker 3s infinite alternate;
     }
 
-    /* --- 3. KARTU METRIK (COMPACT) --- */
+    /* --- 3. KARTU METRIK --- */
     div[data-testid="stMetric"] {
-        background-color: #1b263b !important; 
-        border: 1px solid #00e5ff !important;
-        padding: 10px; 
-        border-radius: 10px; 
-        box-shadow: 0 0 8px #00e5ff;
+        background-color: #1b263b !important; border: 1px solid #00e5ff !important;
+        padding: 10px; border-radius: 10px; box-shadow: 0 0 8px #00e5ff;
     }
-    /* Label Kecil */
-    div[data-testid="stMetricLabel"] p {
-        font-size: 14px !important; 
-        color: #b0c4de !important;
-    }
-    /* Angka Besar */
-    div[data-testid="stMetricValue"] div {
-        font-size: 26px !important; 
-        color: #00e5ff !important;
-        font-weight: bold;
-    }
+    div[data-testid="stMetricLabel"] p { font-size: 14px !important; color: #b0c4de !important; }
+    div[data-testid="stMetricValue"] div { font-size: 26px !important; color: #00e5ff !important; font-weight: bold; }
 
     /* --- 4. JAM DIGITAL --- */
     .clock-card {
-        background-color: #000000;
-        border: 2px solid #333;
-        border-radius: 10px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+        background-color: #000000; border: 2px solid #333; border-radius: 10px; 
+        padding: 20px; text-align: center; box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
     }
     .digital-font {
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 48px;
-        font-weight: bold;
-        color: #39ff14; 
-        text-shadow: 0 0 10px #39ff14;
-        background-color: #0d0d0d;
-        padding: 10px;
-        border-radius: 5px;
-        border: 1px inset #333;
-        letter-spacing: 4px;
-        margin: 10px 0;
+        font-family: 'Courier New', Courier, monospace; font-size: 48px; font-weight: bold; 
+        color: #39ff14; text-shadow: 0 0 10px #39ff14; background-color: #0d0d0d; 
+        padding: 10px; border-radius: 5px; border: 1px inset #333; letter-spacing: 4px; margin: 10px 0;
     }
 
-    /* --- 5. HILANGKAN PADDING ATAS BAWAAN STREAMLIT --- */
-    .block-container { padding-top: 4rem; } 
+    /* --- 5. TABEL GLOWING --- */
+    [data-testid="stDataFrame"] {
+        border: 2px solid #00e5ff !important;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.4) !important;
+        border-radius: 5px !important;
+        background-color: rgba(13, 27, 42, 0.8) !important;
+    }
+    
+    /* Header Tabel: Paksa Hijau Neon & Center */
+    [data-testid="stDataFrame"] th {
+        color: #39ff14 !important; /* HIJAU NEON */
+        border-bottom: 2px solid #39ff14 !important;
+        text-align: center !important; /* PAKSA TENGAH */
+        font-weight: 900 !important;
+        text-transform: uppercase !important;
+        vertical-align: middle !important;
+    }
+    
+    .block-container { padding-top: 3rem; } 
     </style>
     """, unsafe_allow_html=True)
 
@@ -156,8 +137,12 @@ df = load_data()
 # REVISI LANGKAH 4: LOGIKA DATA & ANOMALI
 # ==========================================
 if not df.empty:
-    # 1. Judul & Header (Tetap)
-    st.markdown('<p class="main-title">DASHBOARD REFUELING PITSTOP KM 39</p>', unsafe_allow_html=True)
+    # --- JUDUL DASHBOARD DALAM KOTAK CYBERPUNK (BARU!) ---
+    st.markdown("""
+    <div class="cyberpunk-title-container">
+        <p class="main-title">DASHBOARD REFUELING PITSTOP KM 39</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     # 2. Filter & Refresh (Tetap)
     col_filter, col_btn = st.columns([4, 1]) 
@@ -180,11 +165,7 @@ if not df.empty:
         st.stop()
 
     # --- LOGIKA BARU: DETEKSI EARLY REFILL (VOLVO FMX) ---
-    # Batas Minimum Pengisian yang Efektif (Setengah Tangki / 160L)
     MIN_REFILL_TARGET = 160.0 
-    
-    # Kita butuh df ini untuk visualisasi grafik nanti
-    # Menandai baris mana saja yang Quantity-nya "Pelit" (Anomali)
     df_filtered['is_anomali'] = df_filtered['quantity'] < MIN_REFILL_TARGET
 
     # 4. Fungsi Analisa Performa (Tetap)
@@ -199,11 +180,7 @@ if not df.empty:
             num_days_unit = u_data['timestamp'].dt.date.nunique()
             refills_day = len(u_data) / num_days_unit if num_days_unit > 0 else 0
             
-            performance_data.append({
-                'unit': unit, 
-                'l_hr': l_hr, 
-                'refills_day': refills_day
-            })
+            performance_data.append({'unit': unit, 'l_hr': l_hr, 'refills_day': refills_day})
         return pd.DataFrame(performance_data)
 
     df_perf_global = get_performance_df(df)
@@ -223,8 +200,8 @@ if not df.empty:
     last_update_str = last_update_raw.strftime('%d %b, %H:%M') if pd.notnull(last_update_raw) else "-"
     achievement_rate = (1 - 0.1017) * 100
 
-    # ==========================================
-    # LANGKAH 5: METRIC CARDS
+# ==========================================
+    # LANGKAH 5: METRIC CARDS (UPDATE TAB NAME)
     # ==========================================
     st.write("") 
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -237,30 +214,14 @@ if not df.empty:
 
     st.write("---")
     
-    # Setup Tab
-    tab1, tab2 = st.tabs(["📊 RINGKASAN VISUAL", "📋 LOGSHEET KESELURUHAN"])
+    # GANTI NAMA TAB DI SINI
+    tab1, tab2 = st.tabs(["📊 RINGKASAN VISUAL", "📋 RIWAYAT LOGSHEET"])
 
 # ==========================================
-# REVISI LANGKAH 6: INTEGRASI DAFTAR ANOMALI (EARLY REFILL LIST)
+# REVISI LANGKAH 6: VISUALISASI (ALERT PINDAH KE BAWAH)
 # ==========================================
     with tab1:
-        # --- 1. ALERT BOX (PERINGATAN ATAS) ---
-        MIN_REFILL_TARGET = 160.0
-        # Filter data anomali dari data yang sedang aktif
-        df_early_refill = df_filtered[df_filtered['quantity'] < MIN_REFILL_TARGET].copy()
-
-        if not df_early_refill.empty:
-            st.markdown(f"""
-            <div style="background-color: #441111; border: 2px solid #ff4b4b; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-                <h3 style="color: #ff4b4b; margin: 0; font-size: 20px;">⚠️ PERINGATAN: TERDETEKSI PENGISIAN ANOMALI</h3>
-                <p style="color: #ffffff; font-size: 14px; margin-top: 5px;">
-                    Terdeteksi <b>{len(df_early_refill)} kali</b> unit masuk pitstop dengan kondisi tangki fuel masih diatas {MIN_REFILL_TARGET} Liter . 
-                    menyebabkan antrean tidak efektif!. (Notifikasi ini diluar dari syarat refueling interval 8 Jam)
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # --- BARIS 1: GRAFIK TREN & TOP 5 (TETAP) ---
+        # --- BARIS 1: GRAFIK TREN & TOP 5 (RENDER DULUAN) ---
         row1_c1, row1_c2 = st.columns([1.5, 1])
 
         with row1_c1:
@@ -310,115 +271,144 @@ if not df.empty:
             )
             st.plotly_chart(fig_boros, use_container_width=True)
 
+        # --- ALERT BOX (PINDAH KE SINI: DI BAWAH GRAFIK) ---
+        MIN_REFILL_TARGET = 160.0
+        df_early_refill = df_filtered[df_filtered['quantity'] < MIN_REFILL_TARGET].copy()
+
+        if not df_early_refill.empty:
+            st.write("") # Jarak dikit
+            st.markdown(f"""
+            <div style="background-color: rgba(68, 17, 17, 0.8); border: 2px solid #ff4b4b; padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 0 15px rgba(255, 75, 75, 0.3);">
+                <h3 style="color: #ff4b4b; margin: 0; font-size: 20px;">⚠️ PERINGATAN: TERDETEKSI PENGISIAN ANOMALI</h3>
+                <p style="color: #ffffff; font-size: 14px; margin-top: 5px;">
+                    Terdeteksi <b>{len(df_early_refill)} kali</b> unit masuk pitstop dengan kondisi tangki fuel masih diatas {MIN_REFILL_TARGET} Liter . 
+                    menyebabkan antrean tidak efektif!. (Notifikasi ini diluar dari syarat refueling interval 8 Jam)
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
         # --- BARIS 2: TIGA KOLOM (LIST ANOMALI | TRAFFIC | JAM) ---
         st.write("---")
-        # Layout: Kiri (List) - Tengah (Chart) - Kanan (Jam)
         col_list, col_chart, col_clock = st.columns([1.5, 2.5, 1])
         
-        # --- KOLOM 1: DAFTAR UNIT PELANGGAR (FITUR BARU) ---
+        # --- KOLOM 1: DAFTAR UNIT PELANGGAR ---
         with col_list:
             st.markdown('<p style="font-size: 18px; color: #ff4b4b; font-weight: bold; text-align: center; margin-bottom: 10px;">📋 DAFTAR UNIT REFUELING DIBAWAH 160L</p>', unsafe_allow_html=True)
             
             if not df_early_refill.empty:
-                # Rapikan tabel untuk tampilan
                 df_show = df_early_refill[['timestamp', 'unit', 'quantity']].copy()
-                df_show = df_show.sort_values('timestamp', ascending=False) # Yang terbaru paling atas
-                
-                # Format Waktu agar enak dibaca (Jam:Menit)
+                df_show = df_show.sort_values('timestamp', ascending=False)
                 df_show['Waktu'] = df_show['timestamp'].dt.strftime('%d %b, %H:%M')
-                
-                # Rename kolom
                 df_show = df_show.rename(columns={'unit': 'No Unit', 'quantity': 'Isi (L)'})
                 
-                # Tampilkan tabel tanpa index
-                st.dataframe(
-                    df_show[['Waktu', 'No Unit', 'Isi (L)']], 
-                    use_container_width=True, 
-                    hide_index=True,
-                    height=350 # Tinggi disamakan dengan grafik sebelahnya
-                )
+                st.dataframe(df_show[['Waktu', 'No Unit', 'Isi (L)']], use_container_width=True, hide_index=True, height=350)
             else:
                 st.success("✅ Tidak ada unit yang melanggar batas minimum pengisian.")
 
-        # --- KOLOM 2: GRAFIK TRAFFIC (TENGAH) ---
+        # --- KOLOM 2: GRAFIK TRAFFIC ---
         with col_chart:
-            # 1. SETUP SESSION STATE
-            if 'chart_date' not in st.session_state:
-                st.session_state.chart_date = df['timestamp'].max().date()
-
-            # 2. NAVIGASI TANGGAL
+            if 'chart_date' not in st.session_state: st.session_state.chart_date = df['timestamp'].max().date()
             c_prev, c_date, c_next = st.columns([1, 4, 1])
             with c_prev:
-                if st.button("⬅️ Prev", use_container_width=True):
-                    st.session_state.chart_date -= pd.Timedelta(days=1); st.rerun()
+                if st.button("⬅️ Prev", use_container_width=True): st.session_state.chart_date -= pd.Timedelta(days=1); st.rerun()
             with c_next:
-                if st.button("Next ➡️", use_container_width=True):
-                    st.session_state.chart_date += pd.Timedelta(days=1); st.rerun()
+                if st.button("Next ➡️", use_container_width=True): st.session_state.chart_date += pd.Timedelta(days=1); st.rerun()
             with c_date:
                 hari_dict = {'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu', 'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'}
                 bulan_dict = {'January': 'Januari', 'February': 'Februari', 'March': 'Maret', 'April': 'April', 'May': 'Mei', 'June': 'Juni', 'July': 'Juli', 'August': 'Agustus', 'September': 'September', 'October': 'Oktober', 'November': 'November', 'December': 'Desember'}
-                
-                eng_day = st.session_state.chart_date.strftime("%A")
-                eng_month = st.session_state.chart_date.strftime("%B")
-                tgl_angka = st.session_state.chart_date.day
-                tahun = st.session_state.chart_date.year
+                eng_day = st.session_state.chart_date.strftime("%A"); eng_month = st.session_state.chart_date.strftime("%B")
+                tgl_angka = st.session_state.chart_date.day; tahun = st.session_state.chart_date.year
                 indo_str = f"{hari_dict.get(eng_day, eng_day)}, {tgl_angka} {bulan_dict.get(eng_month, eng_month)} {tahun}"
-                
                 st.markdown(f"<h3 style='text-align: center; color: #00e5ff; margin: 0; font-size: 20px;'>{indo_str}</h3>", unsafe_allow_html=True)
 
-            # 3. RENDER GRAFIK
             df_daily = df[df['timestamp'].dt.date == st.session_state.chart_date].copy()
             if not df_daily.empty:
                 df_daily['jam'] = df_daily['timestamp'].dt.hour
-                hourly_counts = df_daily.groupby('jam').size().reset_index(name='jumlah')
-                hourly_counts = hourly_counts.sort_values('jam')
+                hourly_counts = df_daily.groupby('jam').size().reset_index(name='jumlah').sort_values('jam')
                 hourly_counts['jam_label'] = hourly_counts['jam'].apply(lambda x: f"{x:02d}:00")
-
-                fig_daily = px.bar(
-                    hourly_counts, x='jam_label', y='jumlah',
-                    title=f"📊 TRAFFIC ANTREAN",
-                    text_auto=True, labels={'jam_label': 'Jam', 'jumlah': 'Unit'}
-                )
+                fig_daily = px.bar(hourly_counts, x='jam_label', y='jumlah', title=f"📊 TRAFFIC ANTREAN", text_auto=True, labels={'jam_label': 'Jam', 'jumlah': 'Unit'})
                 fig_daily.update_traces(marker_color='#00e5ff', width=0.6)
-                fig_daily.update_layout(
-                    height=350, margin=dict(l=20, r=20, t=50, b=20),
-                    template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
-                    title_font_size=18,
-                    xaxis=dict(type='category', title_font=dict(size=14), tickfont=dict(size=12)), 
-                    yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title_font=dict(size=14), tickfont=dict(size=12))
-                )
+                fig_daily.update_layout(height=350, margin=dict(l=20, r=20, t=50, b=20), template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', title_font_size=18, xaxis=dict(type='category', title_font=dict(size=14), tickfont=dict(size=12)), yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title_font=dict(size=14), tickfont=dict(size=12)))
                 st.plotly_chart(fig_daily, use_container_width=True)
             else:
                 st.info(f"💤 Tidak ada data pada {indo_str}.")
 
-        # --- KOLOM 3: JAM DIGITAL (KANAN) ---
+        # --- KOLOM 3: JAM DIGITAL ---
         with col_clock:
             st.write(""); st.write("") 
-            html_clock = """
-<div class="clock-card" style="margin-top: 10px; padding: 15px;">
-<p style="color: #888; font-size: 12px; margin-bottom: 5px;"> DURASI REFUELING</p>
-<div class="digital-font" style="font-size: 30px;">
-08:00s
-</div>
-<p style="font-size: 14px; color: #00e5ff;">MENIT / UNIT</p>
-</div>
-"""
+            html_clock = """<div class="clock-card" style="margin-top: 10px; padding: 15px;"><p style="color: #888; font-size: 12px; margin-bottom: 5px;"> DURASI REFUELING</p><div class="digital-font" style="font-size: 30px;">08:00s</div><p style="font-size: 14px; color: #00e5ff;">MENIT / UNIT</p></div>"""
             st.markdown(html_clock, unsafe_allow_html=True)
-            st.markdown("""
-            <div style="text-align: center; color: #aaa; font-size: 11px; margin-top: 10px;">
-            <i>*Durasi refueling diambil dari hasil observasi ketika unit masuk bays s/d keluar bays.</i>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("""<div style="text-align: center; color: #aaa; font-size: 11px; margin-top: 10px;"><i>*Durasi refueling diambil dari hasil observasi ketika unit masuk bays s/d keluar bays.</i></div>""", unsafe_allow_html=True)
 
-    # ==========================================
-    # LANGKAH 7: TABEL DATA
-    # ==========================================
+# ==========================================
+# REVISI LANGKAH 7: RIWAYAT LOGSHEET (FIX HM & HEADER HIJAU)
+# ==========================================
     with tab2:
-        st.subheader("📋 Riwayat Lengkap Logsheet (Terfilter)")
-        df_full = df_filtered.sort_values(by='timestamp', ascending=False).copy()
-        df_full['timestamp'] = df_full['timestamp'].dt.strftime('%d/%m/%Y %H:%M:%S')
-        st.dataframe(df_full, use_container_width=True, height=600, hide_index=True)
+        # Judul Bagian Tabel (Menyala & Tebal)
+        st.markdown("""
+        <h3 style='text-align: center; color: #00e5ff; font-weight: 900; 
+                   text-transform: uppercase; letter-spacing: 2px;
+                   text-shadow: 0 0 15px rgba(0, 229, 255, 0.9); margin-bottom: 20px;'>
+            📋 RIWAYAT LOGSHEET (7 HARI TERAKHIR)
+        </h3>
+        """, unsafe_allow_html=True)
+        
+        if not df_filtered.empty:
+            # 1. FILTER 7 HARI TERAKHIR
+            max_ts = df_filtered['timestamp'].max()
+            cutoff_date = max_ts - pd.Timedelta(days=7)
+            
+            df_show = df_filtered[df_filtered['timestamp'] >= cutoff_date].copy()
+            df_show = df_show.sort_values(by='timestamp', ascending=False)
+            
+            # 2. FORMAT TANGGAL
+            df_show['timestamp'] = df_show['timestamp'].dt.strftime('%d/%m/%Y %H:%M')
+            
+            # 3. BUANG KOLOM TEKNIS
+            cols_to_hide = ['device', 'status', 'is_anomali']
+            existing_cols = [c for c in cols_to_hide if c in df_show.columns]
+            df_show = df_show.drop(columns=existing_cols)
+            
+            # 4. MEMBUAT HEADER JADI CAPSLOCK
+            df_show.columns = df_show.columns.str.upper()
+            
+            # 5. STYLING TABEL (CENTER ALIGNMENT & FIX DECIMAL)
+            # Kita format spesifik kolom HM agar tidak ada desimal
+            styled_df = df_show.style.format({
+                'HM': '{:.0f}',       # Paksa HM jadi bulat tanpa koma
+                'QUANTITY': '{:.0f}'  # Quantity juga kita bulatkan biar rapi
+            }).set_properties(**{
+                'text-align': 'center', 
+                'font-weight': 'bold',
+                'background-color': '#0d1b2a',
+                'color': '#ffffff',
+                'border-color': '#1b263b'
+            }).set_table_styles([
+                # Styling khusus Header (Warna Hijau Neon & Center)
+                {'selector': 'th', 'props': [
+                    ('background-color', '#1b263b'),
+                    ('color', '#39ff14'),   # HIJAU NEON
+                    ('font-weight', '900'), # SANGAT TEBAL
+                    ('text-align', 'center'), # RATA TENGAH
+                    ('border', '1px solid #39ff14'),
+                    ('text-transform', 'uppercase'),
+                    ('font-size', '16px')
+                ]}
+            ])
+            
+            # 6. TAMPILKAN
+            st.dataframe(
+                styled_df, 
+                use_container_width=True, 
+                height=600, 
+                hide_index=True
+            )
+            
+            st.caption(f"ℹ️ Menampilkan data operasional dari {cutoff_date.strftime('%d/%m/%Y')} s/d {max_ts.strftime('%d/%m/%Y')}.")
+            
+        else:
+            st.info("📭 Data tidak tersedia.")
 
-# --- BAGIAN INI UNTUK MENANGANI JIKA DATA KOSONG ---
+# --- BAGIAN ERROR HANDLING ---
 else:
     st.warning("Menunggu data... Pastikan Google Sheet Anda dapat diakses publik (CSV Mode).")
