@@ -168,7 +168,7 @@ if not df.empty:
     MIN_REFILL_TARGET = 160.0 
     df_filtered['is_anomali'] = df_filtered['quantity'] < MIN_REFILL_TARGET
 
-   # 4. Fungsi Analisa Performa (Tetap) berdasarkan nilai Timestamp
+  # 4. Fungsi Analisa Performa (Tetap) berdasarkan nilai Timestamp
     def get_performance_df(data_source):
         active_units = data_source['unit'].unique()
         performance_data = []
@@ -181,10 +181,13 @@ if not df.empty:
             refills_day = len(u_data) / num_days_unit if num_days_unit > 0 else 0
             
             performance_data.append({'unit': unit, 'l_hr': l_hr, 'refills_day': refills_day})
-            return pd.DataFrame(performance_data)
+            
+        # Posisi return sejajar dengan for (mundur ke kiri)
+        return pd.DataFrame(performance_data)
 
-        df_perf_global = get_performance_df(df)
-        df_perf_filtered = get_performance_df(df_filtered)
+    # Posisi pemanggilan fungsi sejajar dengan def (mundur ke kiri lagi)
+    df_perf_global = get_performance_df(df)
+    df_perf_filtered = get_performance_df(df_filtered)
 
     # Rata-rata & Metrik (Tetap)
     if not df_perf_filtered.empty:
