@@ -189,6 +189,11 @@ if not df.empty:
     df_perf_global = get_performance_df(df)
     df_perf_filtered = get_performance_df(df_filtered)
 
+# ==========================================
+# REVISI LANGKAH 4: LOGIKA DATA & ANOMALI
+# ==========================================
+    # ... (kode filter & get_performance_df di atasnya tetap sama) ...
+
     # Rata-rata & Metrik (Tetap)
     if not df_perf_filtered.empty:
         avg_l_per_hr = df_perf_filtered['l_hr'][df_perf_filtered['l_hr'] > 0].mean()
@@ -197,6 +202,17 @@ if not df.empty:
         avg_l_per_hr = 0
         avg_refills_per_day = 0
 
+    # --- LOGIKA TANGGAL OPERASIONAL (SHIFT BASE) ---
+    # Shift lapangan: 06:00 s/d 05:59 besoknya. 
+    # Trik: Mundurkan timestamp 6 jam untuk mendeteksi tanggal produksinya.
+    df_filtered['operational_date'] = (df_filtered['timestamp'] - pd.Timedelta(hours=6)).dt.date
+    daily_consumption = df_filtered.groupby('operational_date')['quantity'].sum()
+    avg_daily_qty = daily_consumption.mean() if not daily_consumption.empty else 0
+
+    # --- HITUNG POPULASI UNIT (VARIASI UNIT UNIK) ---
+    total_populasi_unit = df_filtered['unit'].nunique()
+
+    # Variabel bawaan lainnya (biarkan saja)
     total_qty = df_filtered['quantity'].sum()
     total_trx = len(df_filtered)
     last_update_raw = df_filtered['timestamp'].max()
@@ -204,20 +220,25 @@ if not df.empty:
     achievement_rate = (1 - 0.1017) * 100
 
 # ==========================================
-    # LANGKAH 5: METRIC CARDS (UPDATE TAB NAME)
-    # ==========================================
+# REVISI LANGKAH 5: METRIC CARDS
+# ==========================================
     st.write("") 
     c1, c2, c3, c4, c5 = st.columns(5)
     
-    c1.metric("Total Pemakaian Solar", f"{total_qty:,.0f} L")
-    c2.metric("Total Pengisian", f"{total_trx} Kali")
+    # Metrik 1: Rata-rata Pemakaian Harian (Sesuai Shift)
+    c1.metric("Rata-Rata Pemakaian", f"{avg_daily_qty:,.0f} L/Hari")
+    
+    # Metrik 2: Populasi Unit (Variasi Lambung)
+    c2.metric("Populasi Unit", f"{total_populasi_unit} Unit")
+    
+    # Metrik 3, 4, 5 (Tetap)
     c3.metric("Rata-Rata Pengisian", f"{avg_refills_per_day:.1f} Kali/Hari")
     c4.metric("Fuel Consumption", f"{avg_l_per_hr:.1f} Liter/Jam")
     c5.metric("Update Data Terakhir", last_update_str)
 
     st.write("---")
     
-    # GANTI NAMA TAB DI SINI
+    # --- INI BARIS YANG TADI HILANG ---
     tab1, tab2 = st.tabs(["📊 RINGKASAN VISUAL", "📋 RIWAYAT LOGSHEET"])
 
 # ==========================================
