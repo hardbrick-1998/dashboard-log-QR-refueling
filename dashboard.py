@@ -209,8 +209,8 @@ if not df.empty:
     daily_consumption = df_filtered.groupby('operational_date')['quantity'].sum()
     avg_daily_qty = daily_consumption.mean() if not daily_consumption.empty else 0
 
-    # --- HITUNG POPULASI UNIT (VARIASI UNIT UNIK) ---
-    total_populasi_unit = df_filtered['unit'].nunique()
+    # --- HITUNG POPULASI UNIT (VARIASI UNIT UNIK DIKUNCI) ---
+    total_populasi_unit = df['unit'].nunique()
 
     # Variabel bawaan lainnya (biarkan saja)
     total_qty = df_filtered['quantity'].sum()
@@ -234,7 +234,7 @@ if not df.empty:
     # Metrik 3, 4, 5 (Tetap)
     c3.metric("Rata-Rata Pengisian", f"{avg_refills_per_day:.1f} Kali/Hari")
     c4.metric("Fuel Consumption", f"{avg_l_per_hr:.1f} Liter/Jam")
-    c5.metric("Update Data Terakhir", last_update_str)
+    c5.metric("Update Pengisian Terakhir", last_update_str)
 
     st.write("---")
     
