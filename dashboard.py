@@ -90,7 +90,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# LANGKAH 3: KONEKSI DATA (ANTI-ERROR)
+# LANGKAH 3: KONEKSI DATA (ANTI-ERROR & DETEKSI TANGGAL RUSAK)
 # ==========================================
 SHEET_ID = "1NN_rGKQBZzhUIKnfY1aOs1gvCP2aFiVo6j1RFagtb4s"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
@@ -109,7 +109,8 @@ def load_data():
         df = df.dropna(subset=['unit', 'quantity'], how='all')
 
         if 'timestamp' in df.columns:
-            raw_ts = df['timestamp'].astype(str)
+            # Bersihkan spasi nakal sebelum dibaca
+            raw_ts = df['timestamp'].astype(str).str.strip()
             df['timestamp'] = pd.to_datetime(raw_ts, dayfirst=True, errors='coerce')
             
             mask_failed = df['timestamp'].isna()
@@ -118,11 +119,23 @@ def load_data():
                     raw_ts[mask_failed], dayfirst=False, errors='coerce'
                 )
             
+            # --- ALARM BARU: Hitung berapa data yang tanggalnya gagal dibaca ---
+            if df['timestamp'].isna().any():
+                failed_count = df['timestamp'].isna().sum()
+                st.warning(f"⚠️ Peringatan: Ada {failed_count} baris di Google Sheets yang format tanggalnya salah/tidak terbaca sistem. Grafik mungkin tidak lengkap.")
+            
+            # Buang data yang tanggalnya benar-benar hancur biar grafik nggak error
+            df = df.dropna(subset=['timestamp'])
             df = df.sort_values('timestamp').reset_index(drop=True)
 
         df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0)
+        
+        # Paksa nama unit jadi Huruf Besar
+        df['unit'] = df['unit'].astype(str).str.upper().str.strip()
+
         if 'hm' in df.columns:
-            df['hm'] = pd.to_numeric(df['hm'], errors='coerce')
+            df['hm'] = pd.to_numeric(df['hm'], errors='coerce').fillna(0).astype(int).astype(str)
+            
         if 'shift' in df.columns:
             df['shift'] = df['shift'].astype(str).str.upper().str.strip()
             
@@ -251,29 +264,49 @@ if not df.empty:
         with row1_c1:
             df_trend = df_filtered.copy().sort_values('timestamp')
             
+            # 1. BUAT KOLOM TEKS KHUSUS UNTUK HOVER (TRIK ANTI-CRASH)
+            df_trend['waktu_hover'] = df_trend['timestamp'].dt.strftime('%d %b %Y %H:%M')
+            
             # Layer Biru (Normal)
             fig_trend = px.area(
                 df_trend, x='timestamp', y='quantity', 
-                title="📈 TREN KONSUMSI SOLAR", 
-                hover_data={'timestamp': '|%d %b %Y, %H:%M'}
+                title="📈 TREN KONSUMSI SOLAR",
+                custom_data=['waktu_hover'] # Menyelundupkan teks jam ke dalam grafik
             )
-            fig_trend.update_traces(line_color='#00e5ff', fillcolor='rgba(0, 229, 255, 0.2)')
             
+            # --- UPDATE TAMPILAN HOVER / TOOLTIP ---
+            fig_trend.update_traces(
+                mode='lines+markers', # <-- INI OBATNYA: Paksa sistem menggambar titik!
+                marker=dict(size=6, color='#00e5ff'), # <-- Ukuran titik standar
+                line_color='#00e5ff', 
+                fillcolor='rgba(0, 229, 255, 0.2)',
+                hovertemplate='Waktu Pengisian : %{customdata[0]}<br>Qty : %{y} Liter<extra></extra>'
+            )
+
             # Layer Merah (Anomali)
-            anomali_points = df_trend[df_trend['quantity'] < MIN_REFILL_TARGET]
+            anomali_points = df_trend[df_trend['quantity'] < MIN_REFILL_TARGET].copy()
             if not anomali_points.empty:
+                # Pastikan titik merah juga punya kolom waktu_hover
+                anomali_points['waktu_hover'] = anomali_points['timestamp'].dt.strftime('%d %b %Y %H:%M')
+                
                 fig_trend.add_trace(go.Scatter(
                     x=anomali_points['timestamp'], y=anomali_points['quantity'],
+                    customdata=anomali_points[['waktu_hover']], # Menyelundupkan teks ke titik merah
                     mode='markers', name='Early Refill',
                     marker=dict(color='#ff4b4b', size=10, symbol='x', line=dict(width=2, color='white')),
-                    hovertemplate='<b>EARLY REFILL!</b><br>Vol: %{y} L<br>Waktu: %{x}<extra></extra>'
+                    hovertemplate='<b>EARLY REFILL!</b><br>Waktu Pengisian : %{customdata[0]}<br>Qty : %{y} Liter<extra></extra>'
                 ))
 
             fig_trend.update_layout(
                 height=400, margin=dict(l=10, r=10, t=80, b=10), 
                 template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
                 title_font_size=24,
-                xaxis=dict(title="Waktu Pengisian", title_font=dict(size=18), tickfont=dict(size=14)),
+                xaxis=dict(
+                    title="Waktu Pengisian", 
+                    title_font=dict(size=18), 
+                    tickfont=dict(size=14),
+                    tickformat="%d %b %Y"  # Memaksa sumbu X di bawah HANYA menampilkan tanggal
+                ),
                 yaxis=dict(title="Volume (Liter)", title_font=dict(size=18), tickfont=dict(size=14)),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
             )
@@ -397,10 +430,9 @@ if not df.empty:
             df_show.columns = df_show.columns.str.upper()
             
             # 5. STYLING TABEL (CENTER ALIGNMENT & FIX DECIMAL)
-            # Kita format spesifik kolom HM agar tidak ada desimal
+            # HM sudah jadi teks rapi dari Langkah 3, jadi kita cukup format QUANTITY saja
             styled_df = df_show.style.format({
-                'HM': '{:.0f}',       # Paksa HM jadi bulat tanpa koma
-                'QUANTITY': '{:.0f}'  # Quantity juga kita bulatkan biar rapi
+                'QUANTITY': '{:.0f}'  # Quantity kita bulatkan biar rapi tanpa koma
             }).set_properties(**{
                 'text-align': 'center', 
                 'font-weight': 'bold',
