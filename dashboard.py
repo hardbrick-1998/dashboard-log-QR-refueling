@@ -150,25 +150,40 @@ df = load_data()
 # REVISI LANGKAH 4: LOGIKA DATA & ANOMALI
 # ==========================================
 if not df.empty:
-    # --- JUDUL DASHBOARD DALAM KOTAK CYBERPUNK (BARU!) ---
+    # --- INISIALISASI MEMORI TANGGAL (SESSION STATE) ---
+    if 'filter_date' not in st.session_state:
+        st.session_state.filter_date = df['timestamp'].max().date()
+
+    # --- JUDUL DASHBOARD DALAM KOTAK CYBERPUNK ---
     st.markdown("""
     <div class="cyberpunk-title-container">
         <p class="main-title">DASHBOARD REFUELING PITSTOP KM 39</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # 2. Filter & Refresh (Tetap)
-    col_filter, col_btn = st.columns([4, 1]) 
-    with col_filter:
+    # 2. Filter & Refresh (KALENDER TERKONEKSI)
+    col_filter_unit, col_filter_date, col_btn = st.columns([2, 2, 1]) 
+    
+    with col_filter_unit:
         unit_list = sorted(df['unit'].unique().tolist())
         filter_options = ["ALL UNITS"] + unit_list
-        selected_unit = st.selectbox("🔍 Filter No Lambung Unit:", options=filter_options, index=0)
+        selected_unit = st.selectbox("🔍 Pilih Unit:", options=filter_options, index=0)
+
+    with col_filter_date:
+        # --- INI OBATNYA MAS ---
+        # Jangan pakai key="filter_date", pakai 'value' saja biar nggak dikunci sistem
+        temp_date = st.date_input("📅 Tanggal (Kalender):", value=st.session_state.filter_date)
+        # Tulis ulang nilainya ke memori
+        st.session_state.filter_date = temp_date
 
     with col_btn:
         st.write(" "); st.write(" ") 
         if st.button("🔄 Refresh Data", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
+
+    # Tarik tanggal yang sedang aktif dari memori
+    selected_date = st.session_state.filter_date
 
     # 3. Saring Data
     df_filtered = df if selected_unit == "ALL UNITS" else df[df['unit'] == selected_unit]
@@ -181,7 +196,7 @@ if not df.empty:
     MIN_REFILL_TARGET = 160.0 
     df_filtered['is_anomali'] = df_filtered['quantity'] < MIN_REFILL_TARGET
 
-  # 4. Fungsi Analisa Performa (Tetap) berdasarkan nilai Timestamp
+    # 4. Fungsi Analisa Performa (Tetap) berdasarkan nilai Timestamp
     def get_performance_df(data_source):
         active_units = data_source['unit'].unique()
         performance_data = []
@@ -201,11 +216,6 @@ if not df.empty:
     # Posisi pemanggilan fungsi sejajar dengan def (mundur ke kiri lagi)
     df_perf_global = get_performance_df(df)
     df_perf_filtered = get_performance_df(df_filtered)
-
-# ==========================================
-# REVISI LANGKAH 4: LOGIKA DATA & ANOMALI
-# ==========================================
-    # ... (kode filter & get_performance_df di atasnya tetap sama) ...
 
     # Rata-rata & Metrik (Tetap)
     if not df_perf_filtered.empty:
@@ -255,14 +265,21 @@ if not df.empty:
     tab1, tab2 = st.tabs(["📊 RINGKASAN VISUAL", "📋 RIWAYAT LOGSHEET"])
 
 # ==========================================
-# REVISI LANGKAH 6: VISUALISASI (ALERT PINDAH KE BAWAH)
+# REVISI LANGKAH 6: VISUALISASI DASHBOARD
 # ==========================================
     with tab1:
         # --- BARIS 1: GRAFIK TREN & TOP 5 (RENDER DULUAN) ---
         row1_c1, row1_c2 = st.columns([1.5, 1])
 
         with row1_c1:
-            df_trend = df_filtered.copy().sort_values('timestamp')
+            # --- LOGIKA BARU: FILTER KHUSUS BULAN & TAHUN ---
+            target_month = selected_date.month
+            target_year = selected_date.year
+            
+            df_trend = df_filtered[
+                (df_filtered['timestamp'].dt.month == target_month) & 
+                (df_filtered['timestamp'].dt.year == target_year)
+            ].copy().sort_values('timestamp')
             
             # 1. BUAT KOLOM TEKS KHUSUS UNTUK HOVER (TRIK ANTI-CRASH)
             df_trend['waktu_hover'] = df_trend['timestamp'].dt.strftime('%d %b %Y %H:%M')
@@ -292,9 +309,9 @@ if not df.empty:
                 fig_trend.add_trace(go.Scatter(
                     x=anomali_points['timestamp'], y=anomali_points['quantity'],
                     customdata=anomali_points[['waktu_hover']], # Menyelundupkan teks ke titik merah
-                    mode='markers', name='Early Refill',
+                    mode='markers', name='Anomali Pengisian',
                     marker=dict(color='#ff4b4b', size=10, symbol='x', line=dict(width=2, color='white')),
-                    hovertemplate='<b>EARLY REFILL!</b><br>Waktu Pengisian : %{customdata[0]}<br>Qty : %{y} Liter<extra></extra>'
+                    hovertemplate='<b>Anomali Pengisian!</b><br>Waktu Pengisian : %{customdata[0]}<br>Qty : %{y} Liter<extra></extra>'
                 ))
 
             fig_trend.update_layout(
@@ -362,27 +379,38 @@ if not df.empty:
             else:
                 st.success("✅ Tidak ada unit yang melanggar batas minimum pengisian.")
 
-        # --- KOLOM 2: GRAFIK TRAFFIC ---
+        # --- KOLOM 2: GRAFIK TRAFFIC (DENGAN TOMBOL PREV/NEXT) ---
         with col_chart:
-            if 'chart_date' not in st.session_state: st.session_state.chart_date = df['timestamp'].max().date()
+            # Kembalikan tombol Prev dan Next yang terhubung ke kalender utama
             c_prev, c_date, c_next = st.columns([1, 4, 1])
             with c_prev:
-                if st.button("⬅️ Prev", use_container_width=True): st.session_state.chart_date -= pd.Timedelta(days=1); st.rerun()
+                if st.button("⬅️ Prev", use_container_width=True): 
+                    st.session_state.filter_date -= pd.Timedelta(days=1); st.rerun()
             with c_next:
-                if st.button("Next ➡️", use_container_width=True): st.session_state.chart_date += pd.Timedelta(days=1); st.rerun()
+                if st.button("Next ➡️", use_container_width=True): 
+                    st.session_state.filter_date += pd.Timedelta(days=1); st.rerun()
+            
             with c_date:
                 hari_dict = {'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu', 'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'}
                 bulan_dict = {'January': 'Januari', 'February': 'Februari', 'March': 'Maret', 'April': 'April', 'May': 'Mei', 'June': 'Juni', 'July': 'Juli', 'August': 'Agustus', 'September': 'September', 'October': 'Oktober', 'November': 'November', 'December': 'Desember'}
-                eng_day = st.session_state.chart_date.strftime("%A"); eng_month = st.session_state.chart_date.strftime("%B")
-                tgl_angka = st.session_state.chart_date.day; tahun = st.session_state.chart_date.year
+                
+                eng_day = selected_date.strftime("%A")
+                eng_month = selected_date.strftime("%B")
+                tgl_angka = selected_date.day
+                tahun = selected_date.year
+                
                 indo_str = f"{hari_dict.get(eng_day, eng_day)}, {tgl_angka} {bulan_dict.get(eng_month, eng_month)} {tahun}"
-                st.markdown(f"<h3 style='text-align: center; color: #00e5ff; margin: 0; font-size: 20px;'>{indo_str}</h3>", unsafe_allow_html=True)
+                
+                st.markdown(f"<h3 style='text-align: center; color: #00e5ff; margin: 0; font-size: 20px; padding-bottom: 10px;'>{indo_str}</h3>", unsafe_allow_html=True)
 
-            df_daily = df[df['timestamp'].dt.date == st.session_state.chart_date].copy()
+            # --- LOGIKA BARU: FILTER KHUSUS HARI H (EXACT DATE) ---
+            df_daily = df[df['timestamp'].dt.date == selected_date].copy()
+            
             if not df_daily.empty:
                 df_daily['jam'] = df_daily['timestamp'].dt.hour
                 hourly_counts = df_daily.groupby('jam').size().reset_index(name='jumlah').sort_values('jam')
                 hourly_counts['jam_label'] = hourly_counts['jam'].apply(lambda x: f"{x:02d}:00")
+                
                 fig_daily = px.bar(hourly_counts, x='jam_label', y='jumlah', title=f"📊 TRAFFIC ANTREAN", text_auto=True, labels={'jam_label': 'Jam', 'jumlah': 'Unit'})
                 fig_daily.update_traces(marker_color='#00e5ff', width=0.6)
                 fig_daily.update_layout(height=350, margin=dict(l=20, r=20, t=50, b=20), template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', title_font_size=18, xaxis=dict(type='category', title_font=dict(size=14), tickfont=dict(size=12)), yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)', title_font=dict(size=14), tickfont=dict(size=12)))
@@ -396,7 +424,6 @@ if not df.empty:
             html_clock = """<div class="clock-card" style="margin-top: 10px; padding: 15px;"><p style="color: #888; font-size: 12px; margin-bottom: 5px;"> DURASI REFUELING</p><div class="digital-font" style="font-size: 30px;">08:00s</div><p style="font-size: 14px; color: #00e5ff;">MENIT / UNIT</p></div>"""
             st.markdown(html_clock, unsafe_allow_html=True)
             st.markdown("""<div style="text-align: center; color: #aaa; font-size: 11px; margin-top: 10px;"><i>*Durasi refueling diambil dari hasil observasi ketika unit masuk bays s/d keluar bays.</i></div>""", unsafe_allow_html=True)
-
 # ==========================================
 # REVISI LANGKAH 7: RIWAYAT LOGSHEET (FIX HM & HEADER HIJAU)
 # ==========================================
