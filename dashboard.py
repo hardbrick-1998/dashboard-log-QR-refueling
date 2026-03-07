@@ -336,6 +336,14 @@ if not df.empty:
                 title="🔥 TOP 5 UNIT TERBOROS", 
                 color_discrete_sequence=['#ff4b4b'], text_auto='.1f'
             )
+            
+            # --- UPDATE TAMPILAN HOVER / TOOLTIP (BARU!) ---
+            # Karena grafik horizontal, x adalah l_hr dan y adalah unit.
+            # :.1f memaksa format 1 angka desimal di belakang koma.
+            fig_boros.update_traces(
+                hovertemplate='Fuel Cons : %{x:.1f} L/Hour<br>Unit : %{y}<extra></extra>'
+            )
+
             fig_boros.update_layout(
                 height=400, margin=dict(l=10, r=10, t=80, b=10), 
                 template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
@@ -356,7 +364,7 @@ if not df.empty:
                 <h3 style="color: #ff4b4b; margin: 0; font-size: 20px;">⚠️ PERINGATAN: TERDETEKSI PENGISIAN ANOMALI</h3>
                 <p style="color: #ffffff; font-size: 14px; margin-top: 5px;">
                     Terdeteksi <b>{len(df_early_refill)} kali</b> unit masuk pitstop dengan kondisi tangki fuel masih diatas {MIN_REFILL_TARGET} Liter . 
-                    menyebabkan antrean tidak efektif!. (Notifikasi ini diluar dari syarat refueling interval 8 Jam)
+                    Hal ini bisa jadi disebabkan akibat DT Breakdown / Fuel dikuras / "hal lainnya" . (Notifikasi ini diluar dari syarat refueling interval 8 Jam)
                 </p>
             </div>
             """, unsafe_allow_html=True)
