@@ -541,7 +541,7 @@ if not df.empty:
             st.markdown("""<div style="text-align: center; color: #aaa; font-size: 11px; margin-top: 10px;"><i>*Durasi refueling diambil dari hasil observasi ketika unit masuk bays s/d keluar bays.</i></div>""", unsafe_allow_html=True)
 
 # ==========================================
-# REVISI LANGKAH 7: RIWAYAT LOGSHEET (FIX HM & HEADER HIJAU)
+# REVISI LANGKAH 7: RIWAYAT LOGSHEET (FIX HM, HEADER & CENTER ALIGN)
 # ==========================================
     with tab2:
         # Judul Bagian Tabel (Menyala & Tebal)
@@ -564,18 +564,17 @@ if not df.empty:
             # 2. FORMAT TANGGAL
             df_show['timestamp'] = df_show['timestamp'].dt.strftime('%d/%m/%Y %H:%M')
             
-            # 3. BUANG KOLOM TEKNIS
-            cols_to_hide = ['device', 'status', 'is_anomali']
+            # 3. BUANG KOLOM TEKNIS SEBELUM DITAMPILKAN
+            cols_to_hide = ['device', 'status', 'is_anomali', 'operational_date', 'hm_numeric', 'hm_diff']
             existing_cols = [c for c in cols_to_hide if c in df_show.columns]
             df_show = df_show.drop(columns=existing_cols)
             
             # 4. MEMBUAT HEADER JADI CAPSLOCK
             df_show.columns = df_show.columns.str.upper()
             
-            # 5. STYLING TABEL (CENTER ALIGNMENT & FIX DECIMAL)
-            # HM sudah jadi teks rapi dari Langkah 3, jadi kita cukup format QUANTITY saja
+            # 5. STYLING TABEL (PAKSA RATA TENGAH UNTUK HEADER & ISI)
             styled_df = df_show.style.format({
-                'QUANTITY': '{:.0f}'  # Quantity kita bulatkan biar rapi tanpa koma
+                'QUANTITY': '{:.0f}'  # Quantity dibulatkan
             }).set_properties(**{
                 'text-align': 'center', 
                 'font-weight': 'bold',
@@ -587,15 +586,19 @@ if not df.empty:
                 {'selector': 'th', 'props': [
                     ('background-color', '#1b263b'),
                     ('color', '#39ff14'),   # HIJAU NEON
-                    ('font-weight', '900'), # SANGAT TEBAL
-                    ('text-align', 'center'), # RATA TENGAH
+                    ('font-weight', '900'), 
+                    ('text-align', 'center !important'), # PAKSA HEADER TENGAH
                     ('border', '1px solid #39ff14'),
                     ('text-transform', 'uppercase'),
                     ('font-size', '16px')
+                ]},
+                # Styling khusus Isi Kolom (Sel Data)
+                {'selector': 'td', 'props': [
+                    ('text-align', 'center !important')  # PAKSA ISI TENGAH
                 ]}
             ])
             
-            # 6. TAMPILKAN
+            # 6. TAMPILKAN TABEL GLOWING
             st.dataframe(
                 styled_df, 
                 use_container_width=True, 
