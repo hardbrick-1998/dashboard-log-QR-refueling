@@ -293,11 +293,13 @@ if not df.empty:
                 df_shift = df_shift.sort_values(['operational_date', 'shift']) # Pastikan urutan shift rapi
                 df_shift['tanggal_str'] = pd.to_datetime(df_shift['operational_date']).dt.strftime('%d %b %Y')
 
+                # --- UPDATE: KUNCI MATI WARNA & URUTAN KIRI-KANAN ---
                 fig_trend = px.bar(
                     df_shift, x='operational_date', y='quantity', color='shift',
-                    barmode='group', # Baris berdampingan biar gampang dibandingin
+                    barmode='group', # Baris berdampingan
                     title=f"📈 TREN KONSUMSI SOLAR HARIAN PER SHIFT (BULAN {nama_bulan} {target_year})",
-                    color_discrete_sequence=['#00e5ff', '#bc13fe'], # Cyan & Ungu Neon
+                    color_discrete_map={"SHIFT 1": "#00e5ff", "SHIFT 2": "#bc13fe"}, # PAKSA WARNA: S1=Cyan, S2=Ungu
+                    category_orders={"shift": ["SHIFT 1", "SHIFT 2"]}, # PAKSA URUTAN: S1 Kiri, S2 Kanan
                     custom_data=['tanggal_str', 'shift']
                 )
 
@@ -435,25 +437,29 @@ if not df.empty:
                     custom_data=['waktu_hover', 'unit']
                 )
                 
+                # --- UPDATE 1: PAKSA HOVER TAMPILKAN ANGKA MURNI TANPA K ---
                 fig_hm.update_traces(
                     line=dict(width=3, color='#00e5ff'), marker=dict(size=8, color='#00e5ff'),
-                    hovertemplate='Waktu: %{customdata[0]}<br>HM : %{y}<extra></extra>'
+                    hovertemplate='Waktu: %{customdata[0]}<br>HM : %{y:.0f}<extra></extra>'
                 )
 
                 hm_anomali_points = df_hm_trend[(df_hm_trend['hm_diff'].abs() > 30) | (df_hm_trend['hm_diff'] < 0)]
                 if not hm_anomali_points.empty:
+                    # --- UPDATE 2: PAKSA HOVER ANOMALI TAMPILKAN ANGKA MURNI ---
                     fig_hm.add_trace(go.Scatter(
                         x=hm_anomali_points['timestamp'], y=hm_anomali_points['hm_numeric'],
                         customdata=hm_anomali_points[['waktu_hover', 'unit', 'hm_diff']],
                         mode='markers', name='Anomali HM',
                         marker=dict(color='#ffeb3b', size=14, symbol='x', line=dict(width=2, color='white')),
-                        hovertemplate='<b>⚠️ ANOMALI HM!</b><br>Waktu: %{customdata[0]}<br>HM: %{y}<br>Selisih: %{customdata[2]:.0f} Jam<extra></extra>'
+                        hovertemplate='<b>⚠️ ANOMALI HM!</b><br>Waktu: %{customdata[0]}<br>HM: %{y:.0f}<br>Selisih: %{customdata[2]:.0f} Jam<extra></extra>'
                     ))
                     
                 fig_hm.update_layout(
                     height=400, margin=dict(l=10, r=10, t=50, b=10),
                     template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', title_font_size=24,
-                    xaxis=dict(title="Tanggal Pengisian", tickformat="%d %b %Y"), yaxis=dict(title="Nilai HM"),
+                    xaxis=dict(title="Tanggal Pengisian", tickformat="%d %b %Y"), 
+                    # --- UPDATE 3: PAKSA SUMBU Y MURNI ANGKA TANPA K ---
+                    yaxis=dict(title="Nilai HM", tickformat=".0f"), 
                     showlegend=False
                 )
                 st.plotly_chart(fig_hm, use_container_width=True)
