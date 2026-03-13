@@ -269,7 +269,7 @@ if not df.empty:
 # ==========================================
     with tab1:
         # ========================================================
-        # --- 1. GRAFIK TREN KONSUMSI SOLAR (FULL WIDTH) ---
+        # --- 1. GRAFIK TREN KONSUMSI SOLAR (SMART DYNAMIC CHART) ---
         # ========================================================
         target_month = selected_date.month
         target_year = selected_date.year
@@ -279,50 +279,87 @@ if not df.empty:
             (df_filtered['timestamp'].dt.year == target_year)
         ].copy().sort_values('timestamp')
         
-        # 1. BUAT KOLOM TEKS KHUSUS UNTUK HOVER
-        df_trend['waktu_hover'] = df_trend['timestamp'].dt.strftime('%d %b %Y %H:%M')
-        
-        # Layer Biru (Normal)
-        fig_trend = px.area(
-            df_trend, x='timestamp', y='quantity', 
-            title="📈 TREN KONSUMSI SOLAR",
-            custom_data=['waktu_hover']
-        )
-        
-        fig_trend.update_traces(
-            mode='lines+markers', marker=dict(size=6, color='#00e5ff'), 
-            line_color='#00e5ff', fillcolor='rgba(0, 229, 255, 0.2)',
-            hovertemplate='Waktu Pengisian : %{customdata[0]}<br>Qty : %{y} Liter<extra></extra>'
-        )
+        # Translate Bulan untuk Judul
+        bulan_dict = {'January': 'JANUARI', 'February': 'FEBRUARI', 'March': 'MARET', 'April': 'APRIL', 'May': 'MEI', 'June': 'JUNI', 'July': 'JULI', 'August': 'AGUSTUS', 'September': 'SEPTEMBER', 'October': 'OKTOBER', 'November': 'NOVEMBER', 'December': 'DESEMBER'}
+        nama_bulan = bulan_dict.get(selected_date.strftime("%B"), selected_date.strftime("%B").upper())
 
-        MIN_REFILL_TARGET = 160.0
-        df_early_refill = df_filtered[df_filtered['quantity'] < MIN_REFILL_TARGET].copy()
-        
-        # Layer Merah (Anomali)
-        anomali_points = df_trend[df_trend['quantity'] < MIN_REFILL_TARGET].copy()
-        if not anomali_points.empty:
-            anomali_points['waktu_hover'] = anomali_points['timestamp'].dt.strftime('%d %b %Y %H:%M')
-            fig_trend.add_trace(go.Scatter(
-                x=anomali_points['timestamp'], y=anomali_points['quantity'],
-                customdata=anomali_points[['waktu_hover']], 
-                mode='markers', name='Anomali Pengisian',
-                marker=dict(color='#ff4b4b', size=10, symbol='x', line=dict(width=2, color='white')),
-                hovertemplate='<b>Anomali Pengisian!</b><br>Waktu Pengisian : %{customdata[0]}<br>Qty : %{y} Liter<extra></extra>'
-            ))
+        MIN_REFILL_TARGET = 160.0 # Patokan Anomali
 
-        fig_trend.update_layout(
-            height=400, margin=dict(l=10, r=10, t=50, b=10), 
-            template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
-            title_font_size=24,
-            xaxis=dict(title="Waktu Pengisian", title_font=dict(size=18), tickformat="%d %b %Y"),
-            yaxis=dict(title="Volume (Liter)", title_font=dict(size=18)),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
+        if selected_unit == "ALL UNITS":
+            # --- LOGIKA BARU: GRAFIK BATANG PER SHIFT (CYAN & UNGU NEON) ---
+            if 'shift' in df_trend.columns:
+                # Group by tanggal operasional dan shift
+                df_shift = df_trend.groupby(['operational_date', 'shift'])['quantity'].sum().reset_index()
+                df_shift = df_shift.sort_values(['operational_date', 'shift']) # Pastikan urutan shift rapi
+                df_shift['tanggal_str'] = pd.to_datetime(df_shift['operational_date']).dt.strftime('%d %b %Y')
+
+                fig_trend = px.bar(
+                    df_shift, x='operational_date', y='quantity', color='shift',
+                    barmode='group', # Baris berdampingan biar gampang dibandingin
+                    title=f"📈 TREN KONSUMSI SOLAR HARIAN PER SHIFT (BULAN {nama_bulan} {target_year})",
+                    color_discrete_sequence=['#00e5ff', '#bc13fe'], # Cyan & Ungu Neon
+                    custom_data=['tanggal_str', 'shift']
+                )
+
+                fig_trend.update_traces(
+                    hovertemplate='Tanggal: %{customdata[0]}<br>Shift: %{customdata[1]}<br>Total: %{y:,.0f} Liter<extra></extra>'
+                )
+
+                fig_trend.update_layout(
+                    height=400, margin=dict(l=10, r=10, t=50, b=10),
+                    template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
+                    title_font_size=24,
+                    xaxis=dict(title="Tanggal Operasional", title_font=dict(size=18), tickformat="%d %b"),
+                    yaxis=dict(title="Volume (Liter)", title_font=dict(size=18)),
+                    legend=dict(title="Shift", orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+            else:
+                st.warning("⚠️ Kolom 'shift' tidak ditemukan di data.")
+                fig_trend = go.Figure()
+        else:
+            # --- LOGIKA LAMA: GRAFIK AREA + ANOMALI (KHUSUS 1 UNIT) ---
+            df_trend['waktu_hover'] = df_trend['timestamp'].dt.strftime('%d %b %Y %H:%M')
+            
+            fig_trend = px.area(
+                df_trend, x='timestamp', y='quantity', 
+                title=f"📈 TREN KONSUMSI SOLAR - {selected_unit} (BULAN {nama_bulan} {target_year})",
+                custom_data=['waktu_hover']
+            )
+            
+            fig_trend.update_traces(
+                mode='lines+markers', marker=dict(size=6, color='#00e5ff'), 
+                line_color='#00e5ff', fillcolor='rgba(0, 229, 255, 0.2)',
+                hovertemplate='Waktu Pengisian : %{customdata[0]}<br>Qty : %{y} Liter<extra></extra>'
+            )
+
+            # Layer Merah (Anomali) khusus untuk unit tersebut
+            anomali_points = df_trend[df_trend['quantity'] < MIN_REFILL_TARGET].copy()
+            if not anomali_points.empty:
+                anomali_points['waktu_hover'] = anomali_points['timestamp'].dt.strftime('%d %b %Y %H:%M')
+                fig_trend.add_trace(go.Scatter(
+                    x=anomali_points['timestamp'], y=anomali_points['quantity'],
+                    customdata=anomali_points[['waktu_hover']], 
+                    mode='markers', name='Anomali Pengisian',
+                    marker=dict(color='#ff4b4b', size=10, symbol='x', line=dict(width=2, color='white')),
+                    hovertemplate='<b>Anomali Pengisian!</b><br>Waktu Pengisian : %{customdata[0]}<br>Qty : %{y} Liter<extra></extra>'
+                ))
+
+            fig_trend.update_layout(
+                height=400, margin=dict(l=10, r=10, t=50, b=10), 
+                template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)',
+                title_font_size=24,
+                xaxis=dict(title="Waktu Pengisian", title_font=dict(size=18), tickformat="%d %b %Y"),
+                yaxis=dict(title="Volume (Liter)", title_font=dict(size=18)),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+
         st.plotly_chart(fig_trend, use_container_width=True)
 
         # ========================================================
         # --- 2. DUAL ALERT BOX (DI TENGAH) ---
         # ========================================================
+        df_early_refill = df_filtered[df_filtered['quantity'] < MIN_REFILL_TARGET].copy()
+        
         df_filtered['hm_numeric'] = pd.to_numeric(df_filtered['hm'], errors='coerce').fillna(0)
         df_filtered = df_filtered.sort_values(['unit', 'timestamp'])
         df_filtered['hm_diff'] = df_filtered.groupby('unit')['hm_numeric'].diff()
@@ -371,9 +408,6 @@ if not df.empty:
             df_hm_trend['waktu_hover'] = df_hm_trend['timestamp'].dt.strftime('%d %b %Y %H:%M')
 
             if selected_unit == "ALL UNITS":
-                bulan_dict = {'January': 'JANUARI', 'February': 'FEBRUARI', 'March': 'MARET', 'April': 'APRIL', 'May': 'MEI', 'June': 'JUNI', 'July': 'JULI', 'August': 'AGUSTUS', 'September': 'SEPTEMBER', 'October': 'OKTOBER', 'November': 'NOVEMBER', 'December': 'DESEMBER'}
-                nama_bulan = bulan_dict.get(selected_date.strftime("%B"), selected_date.strftime("%B").upper())
-
                 df_only_anomali = df_hm_trend[(df_hm_trend['hm_diff'].abs() > 30) | (df_hm_trend['hm_diff'] < 0)].copy()
 
                 if not df_only_anomali.empty:
@@ -382,7 +416,7 @@ if not df.empty:
 
                     fig_hm = px.bar(
                         anomali_counts, x="jumlah_anomali", y="unit", orientation='h',
-                        title=f"🚨 TOP 10 UNIT DENGAN INPUT HM ANOMALI (BULAN {nama_bulan} {target_year})",
+                        title=f"🚨 TOP 10 UNIT DENGAN HM ANOMALI (BULAN {nama_bulan} {target_year})",
                         text_auto=True, color_discrete_sequence=['#ffeb3b']
                     )
                     fig_hm.update_traces(hovertemplate='Unit : %{y}<br>Jumlah Error : %{x} Kali<extra></extra>')
@@ -397,7 +431,7 @@ if not df.empty:
             else:
                 fig_hm = px.line(
                     df_hm_trend, x='timestamp', y='hm_numeric', markers=True,
-                    title=f"⏱️ TREN PERGERAKAN HOUR METER - {selected_unit}",
+                    title=f"⏱️ TREN PERGERAKAN HOUR METER - {selected_unit} (BULAN {nama_bulan} {target_year})",
                     custom_data=['waktu_hover', 'unit']
                 )
                 
@@ -502,7 +536,7 @@ if not df.empty:
 
         with col_clock:
             st.write(""); st.write("") 
-            html_clock = """<div class="clock-card" style="margin-top: 50px; padding: 15px;"><p style="color: #888; font-size: 12px; margin-bottom: 5px;"> DURASI REFUELING</p><div class="digital-font" style="font-size: 30px;">08:00s</div><p style="font-size: 14px; color: #00e5ff;">MENIT / UNIT</p></div>"""
+            html_clock = """<div class="clock-card" style="margin-top: 50px; padding: 15px;"><p style="color: #888; font-size: 12px; margin-bottom: 5px;"> DURASI REFUELING</p><div class="digital-font" style="font-size: 30px;">08:00</div><p style="font-size: 14px; color: #00e5ff;">MENIT / UNIT</p></div>"""
             st.markdown(html_clock, unsafe_allow_html=True)
             st.markdown("""<div style="text-align: center; color: #aaa; font-size: 11px; margin-top: 10px;"><i>*Durasi refueling diambil dari hasil observasi ketika unit masuk bays s/d keluar bays.</i></div>""", unsafe_allow_html=True)
 
